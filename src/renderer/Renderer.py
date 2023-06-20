@@ -1,5 +1,10 @@
 from PIL import Image
 import numpy as np
+import colorsys
+from OpenGL.GL import *
+from ctypes import *
+
+from Shader import Shader
 
 class Renderer:
     
@@ -16,102 +21,151 @@ class Renderer:
             raise Exception("Window already exists!")
         
         Renderer.__instance = self
+
+        glClearColor(0.1, 0.1, 0.1, 1.0)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glDisable(GL_DEPTH_TEST)
+
+        self.shader = Shader("../shaders/vertex.glsl", "../shaders/fragment.glsl")
+
+        vertices = [
+            -0.5, -0.5, 0.0,
+             0.5, -0.5, 0.0,
+             0.0,  0.5, 0.0
+        ]
+
+        vertices = [
+            -1, -1, 0.0,
+             1, -1, 0.0,
+             1,  1, 0.0,
+            -1, -1, 0.0,
+            -1,  1, 0.0,
+             1,  1, 0.0
+        ]
+
+        vertices = (GLfloat * len(vertices))(*vertices)
+
+        self.vbo = None
+        self.vbo = glGenBuffers(1, self.vbo)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
+
+
+        self.vao = None
+        self.vao = glGenVertexArrays(1, self.vao)
+
+        glBindVertexArray(self.vao)
+
+        glEnableVertexAttribArray(0)
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), c_void_p(0))
     
     
     def render(self):
-        width = 400
-        height = 300
+        glClear(GL_COLOR_BUFFER_BIT)
+        glUseProgram(self.shader.program)
+        glBindVertexArray(self.vao)
+        glDrawArrays(GL_TRIANGLES, 0, 6)
+        
+
+        
+        width = 200
+        height = 160
         
         ratio = float(width) / height
-        max_depth = 3
         
         img = Image.new(mode = "RGB", size = (width, height), color = (77, 77, 77))
-
-
-        camera = np.array([0, 0, 1])
         
-        objects = [
-            { 'center': np.array([-0.2, 0, -1]), 'radius': 0.7, 'ambient': np.array([0.1, 0, 0]), 'diffuse': np.array([0.7, 0, 0]), 'specular': np.array([1, 1, 1]), 'shininess': 100, 'reflection': 0.5 },
-            { 'center': np.array([0.1, -0.3, 0]), 'radius': 0.1, 'ambient': np.array([0.1, 0, 0.1]), 'diffuse': np.array([0.7, 0, 0.7]), 'specular': np.array([1, 1, 1]), 'shininess': 100, 'reflection': 0.5 },
-            { 'center': np.array([-0.3, 0, 0]), 'radius': 0.15, 'ambient': np.array([0, 0.1, 0]), 'diffuse': np.array([0, 0.6, 0]), 'specular': np.array([1, 1, 1]), 'shininess': 100, 'reflection': 0.5 },
-            { 'center': np.array([0, -9000, 0]), 'radius': 9000 - 0.7, 'ambient': np.array([0.1, 0.1, 0.1]), 'diffuse': np.array([0.6, 0.6, 0.6]), 'specular': np.array([1, 1, 1]), 'shininess': 100, 'reflection': 0.5 }
+        models = [
+            {'vertices': np.array([[-0.5, -0.5, 0],
+                                   [ 0.5, -0.5, 0],
+                                   [   0,  0.5, 0]])}
         ]
+
+        for model in models:
+            edge_01 = model["vertices"][1] - model["vertices"][0]
+            edge_02 = model["vertices"][2] - model["vertices"][0]
+
+            normal = np.cross(edge_01, edge_02)
+
+            model["normal"] = normalize(normal)
         
-        light = { 'position': np.array([5, 5, 5]), 'ambient': np.array([1, 1, 1]), 'diffuse': np.array([1, 1, 1]), 'specular': np.array([1, 1, 1]) }
-        
-        for y in range(height):
-            for x in range(width):
-                u = map_range(x, 0, width,  0, 1)
-                v = map_range(y, 0, height, 0, 1)
-                
-                u = u - 0.5
-                v = v - 0.5
-                u *= 2
-                v *= 2
-                
-                v /= ratio
-                
-                pixel = np.array([u, v, 0])
-                
-                
-                origin = camera
-                direction = normalize(pixel - origin)
-                
-                color = np.zeros((3))
-                reflection = 1
-                
-                for k in range(max_depth):
-                    nearest_object, min_distance = nearest_intersected_object(objects, origin, direction)
-                    if nearest_object is None:
+
+        camera = np.array([0, 0, -1])
+
+        for model in models:
+            for y in range(height):
+                for x in range(width):
+                    u = map_range(x, 0, width,  0, 1)
+                    v = map_range(y, 0, height, 0, 1)
+
+                    u -= 0.5
+                    v -= 0.5
+
+                    u *= 2
+                    v *= 2
+
+                    v /= ratio
+
+                    pixel = np.array([u, v, 0])
+
+                    origin = camera
+                    direction = normalize(pixel - camera)
+                    #direction = normalize(np.array([1, 1, 0]) - camera)
+
+                    normal = model["normal"]
+                    vertices = model["vertices"]
+
+
+                    distance = -np.dot(normal, vertices[0])
+
+                    parallelism = np.dot(normal, direction)
+
+                    if parallelism == 0 or np.isnan(parallelism):
+                        print("division by 0")
                         continue
 
-                    # compute intersection point between ray and nearest object
-                    intersection = origin + min_distance * direction
 
-                    normal_to_surface = normalize(intersection - nearest_object['center'])
-                    shifted_point = intersection + 1e-5 * normal_to_surface
-                    intersection_to_light = normalize(light['position'] - shifted_point)
+                    t = -(np.dot(normal, origin) + distance) / np.dot(normal, direction)
 
-                    _, min_distance = nearest_intersected_object(objects, shifted_point, intersection_to_light)
-                    intersection_to_light_distance = np.linalg.norm(light['position'] - intersection)
-                    is_shadowed = min_distance < intersection_to_light_distance
+                    #print(f"t: {t}")
 
-                    if is_shadowed:
+                    if t <= 0:
                         continue
+
+                    p_hit = origin + t * direction
+
+                    #print(p_hit)
+
+                    if inside_outside_test(vertices[0], vertices[1], vertices[2], p_hit, normal):
+                        #print("hit")
+                        r = 30
+                        g = 125
+                        b = 255
                     
-                    # RGB
-                    illumination = np.zeros((3))
+                    else:
+                        r = 77
+                        g = 77
+                        b = 77
 
-                    # ambiant
-                    illumination += nearest_object['ambient'] * light['ambient']
+                    #r = int(map_range(p_hit[0], 0, 1, 0, 255))
+                    #g = int(map_range(p_hit[1], 0, 1, 0, 255))
+                    #b = int(map_range(p_hit[2], 0, 1, 0, 255))
 
-                    # diffuse
-                    illumination += nearest_object['diffuse'] * light['diffuse'] * np.dot(intersection_to_light, normal_to_surface)
+            # intersectionPoint = origin + t * direction
 
-                    # specular
-                    intersection_to_camera = normalize(camera - intersection)
-                    H = normalize(intersection_to_light + intersection_to_camera)
-                    illumination += nearest_object['specular'] * light['specular'] * np.dot(normal_to_surface, H) ** (nearest_object['shininess'] / 4)
-                
-                    # reflection
-                    color += reflection * illumination
-                    reflection *= nearest_object['reflection']
-                    
-                    origin = shifted_point
-                    direction = reflected(direction, normal_to_surface)
-                
 
-                # print(illumination)
+                    #r = abs(int(map_range(u, 0, 1, 0, 255)))
+                    #g = abs(int(map_range(v, 0, 1, 0, 255)))
+                    #b = 0
 
-                # r = int(map_range(u, 0, 1, 0, 255))
-                # g = int(map_range(v, 0, 1, 0, 255))
-                r = int(map_range(color[0], 0, 1, 0, 255))
-                g = int(map_range(color[1], 0, 1, 0, 255))
-                b = int(map_range(color[2], 0, 1, 0, 255))
+                    img.putpixel((x, (height - 1) - y), (r, g, b))
 
-                img.putpixel((x, (height - 1) - y), (r, g, b))
-        
+
         img.save("render.png")
+        
         
         
 def map_range(x, in_min, in_max, out_min, out_max):
@@ -120,6 +174,21 @@ def map_range(x, in_min, in_max, out_min, out_max):
 
 def normalize(vector):
     return vector / np.linalg.norm(vector)
+
+
+def inside_outside_test(v0, v1, v2, p, n):
+    edge0 = v1 - v0
+    edge1 = v2 - v1
+    edge2 = v0 - v2
+
+    c0 = p - v0
+    c1 = p - v1
+    c2 = p - v2
+
+    if np.dot(n, np.cross(edge0, c0)) > 0 and np.dot(n, np.cross(edge1, c1)) > 0 and np.dot(n, np.cross(edge2, c2)) > 0:
+        return True
+
+    return False
 
 
 def sphere_intersect(center, radius, ray_origin, ray_direction):

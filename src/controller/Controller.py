@@ -110,4 +110,5 @@ class Controller:
             
             
     def update(self):
-        print(self.states)
+        #print(self.states)
+        pass

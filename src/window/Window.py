@@ -14,7 +14,7 @@ class Window():
             Window()
         return Window.__instance
     
-    def __init__(self, width = 1280, height = 720, name = "Pyllium"):
+    def __init__(self, width = 200, height = 160, name = "Pyllium"):
         if Window.__instance != None:
             raise Exception("Window already exists!")
         
@@ -37,6 +37,8 @@ class Window():
         glfw.set_key_callback(self.window, key_callback);
         glfw.set_framebuffer_size_callback(self.window, framebuffer_size_callback);
 
+        glfw.make_context_current(self.window)
+
         
 
 
@@ -48,6 +50,7 @@ def key_callback(window, key, scancode, action, mods):
 
 
 def framebuffer_size_callback(window, width, height):
+    glViewport(0, 0, width, height)
     Window.getInstance().width = width
     Window.getInstance().height = height
     Window.getInstance().projection_matrix = Matrix44.orthogonal_projection(-width/2, width/2, -height/2, height/2, -1, 1)
