@@ -1,6 +1,7 @@
 import glfw
 import time
 from renderer.Renderer import Renderer
+from camera.Camera import Camera
 
 class Controller:
     
@@ -29,6 +30,8 @@ class Controller:
         self.states["player_down"] = False
         self.states["player_left"] = False
         self.states["player_right"] = False
+        self.states["player_forward"] = False
+        self.states["player_backward"] = False
         self.states["player_jumping"] = False
 
         self.states["display_bounding_box"] = False
@@ -68,6 +71,12 @@ class Controller:
         if symbol == glfw.KEY_RIGHT:
             self.states["player_right"] = True
 
+        if symbol == glfw.KEY_E:
+            self.states["player_forward"] = True
+
+        if symbol == glfw.KEY_Q:
+            self.states["player_backward"] = True
+
 
         if symbol == glfw.KEY_SPACE:
             self.states["player_jumping"] = True
@@ -106,25 +115,35 @@ class Controller:
         if symbol == glfw.KEY_RIGHT:
             self.states["player_right"] = False
 
+        if symbol == glfw.KEY_E:
+            self.states["player_forward"] = False
+
+        if symbol == glfw.KEY_Q:
+            self.states["player_backward"] = False
+
         if symbol == glfw.KEY_SPACE:
             self.states["player_jumping"] = False
             
             
     def update(self):
         if self.states["player_up"]:
-            Renderer.getInstance().model.move(0, 20, 0)
+            Renderer.getInstance().model.move(0, 0.005, 0)
         if self.states["player_down"]:
-            Renderer.getInstance().model.move(0,-20, 0)
+            Renderer.getInstance().model.move(0,-0.005, 0)
         if self.states["player_left"]:
-            Renderer.getInstance().model.move(20, 0, 0)
+            Renderer.getInstance().model.move(-0.005, 0, 0)
         if self.states["player_right"]:
-            Renderer.getInstance().model.move(-20, 0, 0)
+            Renderer.getInstance().model.move(0.005, 0, 0)
+        if self.states["player_forward"]:
+            Renderer.getInstance().model.move(0, 0, -0.005)
+        if self.states["player_backward"]:
+            Renderer.getInstance().model.move(0, 0, 0.005)
 
         if self.states["camera_up"]:
-            Renderer.getInstance().camera[1] += 0.0005
+            Camera.getInstance().forward(-0.005)
         if self.states["camera_down"]:
-            Renderer.getInstance().camera[1] += -0.0005
+            Camera.getInstance().forward(0.005)
         if self.states["camera_right"]:
-            Renderer.getInstance().camera[0] += 0.0005
+            Camera.getInstance().move(-0.005)
         if self.states["camera_left"]:
-            Renderer.getInstance().camera[0] += -0.0005
+            Camera.getInstance().move(0.005)

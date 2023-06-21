@@ -2,7 +2,7 @@
 
 in vec2 position;
 in mat4 fragModel;
-in vec3 fragCamera;
+in mat4 view;
 
 out vec4 fragColor;
 
@@ -42,13 +42,13 @@ void main() {
     int i;
 
     for (i = 0; i <= vertices.length(); i += 9) {
-        vec4 v0_0 = vec4(vertices[i    ], vertices[i + 1], vertices[i + 2], 0.0);
-        vec4 v1_0 = vec4(vertices[i + 3], vertices[i + 4], vertices[i + 5], 0.0);
-        vec4 v2_0 = vec4(vertices[i + 6], vertices[i + 7], vertices[i + 8], 0.0);
+        vec4 v0_0 = vec4(vertices[i    ], vertices[i + 1], vertices[i + 2], 1.0);
+        vec4 v1_0 = vec4(vertices[i + 3], vertices[i + 4], vertices[i + 5], 1.0);
+        vec4 v2_0 = vec4(vertices[i + 6], vertices[i + 7], vertices[i + 8], 1.0);
 
-        v0_0 = fragModel * v0_0;
-        v1_0 = fragModel * v1_0;
-        v2_0 = fragModel * v2_0;
+        v0_0 = view * fragModel * v0_0;
+        v1_0 = view * fragModel * v1_0;
+        v2_0 = view * fragModel * v2_0;
 
         vec3 v0 = v0_0.xyz;
         vec3 v1 = v1_0.xyz;
@@ -65,7 +65,7 @@ void main() {
         vec3 normal = normalize(cross(edge01, edge02));
 
         // vec3 camera = vec3(0.0, 0.0, -3.0);
-        vec3 camera = fragCamera;
+        vec3 camera = vec3(0.0, 0.0, -3.0);
 
         vec3 pixel = vec3(position.x, position.y, -2.0);
 

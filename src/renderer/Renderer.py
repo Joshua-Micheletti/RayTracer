@@ -14,6 +14,7 @@ import pywavefront
 from pyrr import Matrix44
 
 from model.Model import Model
+from camera.Camera import Camera
 
 class Renderer:
     
@@ -68,9 +69,11 @@ class Renderer:
         self.ssbo = None;
         self.ssbo = glGenBuffers(1);
         
-        cube = pywavefront.Wavefront('../models/box.obj', collect_faces = True)
 
-        self.model = Model("../models/box.obj")
+        self.model = Model("../models/tree.obj")
+        self.model.scale(0.05, 0.05, 0.05)
+        self.model.move(0, -1, 0)
+
 
         shader_data = (GLfloat * len(self.model.vertices))(*self.model.vertices)
 
@@ -79,7 +82,7 @@ class Renderer:
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, self.ssbo)
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
 
-        self.camera = [0.0, 0.0, -3]
+        self.camera = Camera.getInstance()
 
     
     def render(self):
@@ -88,8 +91,8 @@ class Renderer:
         glClear(GL_COLOR_BUFFER_BIT)
         glUseProgram(self.shader.program)
         glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "model"), 1, GL_FALSE, self.model.model_matrix)
-        glUniform3f(glGetUniformLocation(self.shader.program, "camera"), self.camera[0], self.camera[1], self.camera[2])
-        print(self.model.model_matrix)
+        glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "camera"), 1, GL_FALSE, self.camera.get_view_matrix())
+        # print(self.model.model_matrix)
         glBindVertexArray(self.vao)
         glDrawArrays(GL_TRIANGLES, 0, 6)
 
