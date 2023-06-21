@@ -1,5 +1,6 @@
 import glfw
 import time
+from renderer.Renderer import Renderer
 
 class Controller:
     
@@ -110,5 +111,20 @@ class Controller:
             
             
     def update(self):
-        #print(self.states)
-        pass
+        if self.states["player_up"]:
+            Renderer.getInstance().model.move(0, 20, 0)
+        if self.states["player_down"]:
+            Renderer.getInstance().model.move(0,-20, 0)
+        if self.states["player_left"]:
+            Renderer.getInstance().model.move(20, 0, 0)
+        if self.states["player_right"]:
+            Renderer.getInstance().model.move(-20, 0, 0)
+
+        if self.states["camera_up"]:
+            Renderer.getInstance().camera[1] += 0.0005
+        if self.states["camera_down"]:
+            Renderer.getInstance().camera[1] += -0.0005
+        if self.states["camera_right"]:
+            Renderer.getInstance().camera[0] += 0.0005
+        if self.states["camera_left"]:
+            Renderer.getInstance().camera[0] += -0.0005

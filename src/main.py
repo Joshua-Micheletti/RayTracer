@@ -8,8 +8,6 @@ def main():
     window = Window.getInstance()
     controller = Controller.getInstance()
     renderer = Renderer.getInstance()
-    
-    
 
     while not glfw.window_should_close(window.window):
         controller.update()
@@ -23,9 +21,6 @@ def main():
         
     glfw.terminate()
     
-    
-    
-
 
 if __name__ == "__main__":
     main()

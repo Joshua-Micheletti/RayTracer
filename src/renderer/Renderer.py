@@ -9,6 +9,12 @@ from Shader import Shader
 import time
 import win_precise_time as wpt
 
+import pywavefront
+
+from pyrr import Matrix44
+
+from model.Model import Model
+
 class Renderer:
     
     __instance = None
@@ -31,12 +37,6 @@ class Renderer:
         glDisable(GL_DEPTH_TEST)
 
         self.shader = Shader("../shaders/vertex.glsl", "../shaders/fragment.glsl")
-
-        vertices = [
-            -0.5, -0.5, 0.0,
-             0.5, -0.5, 0.0,
-             0.0,  0.5, 0.0
-        ]
 
         vertices = [
             -1, -1, 0.0,
@@ -64,124 +64,40 @@ class Renderer:
         glEnableVertexAttribArray(0)
 
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), c_void_p(0))
-    
+
+        self.ssbo = None;
+        self.ssbo = glGenBuffers(1);
+        
+        cube = pywavefront.Wavefront('../models/box.obj', collect_faces = True)
+
+        self.model = Model("../models/box.obj")
+
+        shader_data = (GLfloat * len(self.model.vertices))(*self.model.vertices)
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.ssbo)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(shader_data), shader_data, GL_DYNAMIC_COPY)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, self.ssbo)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+
+        self.camera = [0.0, 0.0, -3]
+
     
     def render(self):
         start = wpt.time()
 
         glClear(GL_COLOR_BUFFER_BIT)
         glUseProgram(self.shader.program)
+        glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "model"), 1, GL_FALSE, self.model.model_matrix)
+        glUniform3f(glGetUniformLocation(self.shader.program, "camera"), self.camera[0], self.camera[1], self.camera[2])
+        print(self.model.model_matrix)
         glBindVertexArray(self.vao)
         glDrawArrays(GL_TRIANGLES, 0, 6)
 
         end = wpt.time()
         print(f"Pixel Shader: {(end - start) * 1000}")
-        
-        
-        start = wpt.time()
-        '''
-        width = 200
-        height = 160
-        
-        ratio = float(width) / height
-        
-        img = Image.new(mode = "RGB", size = (width, height), color = (77, 77, 77))
-        
-        models = [
-            {'vertices': np.array([[-0.5, -0.5, 0],
-                                   [ 0.5, -0.5, 0],
-                                   [   0,  0.5, 0]])}
-        ]
 
-        for model in models:
-            edge_01 = model["vertices"][1] - model["vertices"][0]
-            edge_02 = model["vertices"][2] - model["vertices"][0]
-
-            normal = np.cross(edge_01, edge_02)
-
-            model["normal"] = normalize(normal)
         
 
-        camera = np.array([0, 0, -1])
-
-        for model in models:
-            for y in range(height):
-                for x in range(width):
-                    u = map_range(x, 0, width,  0, 1)
-                    v = map_range(y, 0, height, 0, 1)
-
-                    u -= 0.5
-                    v -= 0.5
-
-                    u *= 2
-                    v *= 2
-
-                    v /= ratio
-
-                    pixel = np.array([u, v, 0])
-
-                    origin = camera
-                    direction = normalize(pixel - camera)
-                    #direction = normalize(np.array([1, 1, 0]) - camera)
-
-                    normal = model["normal"]
-                    vertices = model["vertices"]
-
-
-                    distance = -np.dot(normal, vertices[0])
-
-                    parallelism = np.dot(normal, direction)
-
-                    if parallelism == 0 or np.isnan(parallelism):
-                        print("division by 0")
-                        continue
-
-
-                    t = -(np.dot(normal, origin) + distance) / np.dot(normal, direction)
-
-                    #print(f"t: {t}")
-
-                    if t <= 0:
-                        continue
-
-                    p_hit = origin + t * direction
-
-                    #print(p_hit)
-
-                    if inside_outside_test(vertices[0], vertices[1], vertices[2], p_hit, normal):
-                        #print("hit")
-                        r = 30
-                        g = 125
-                        b = 255
-                    
-                    else:
-                        r = 77
-                        g = 77
-                        b = 77
-
-                    #r = int(map_range(distance, 0, 1, 0, 255))
-                    #g = int(map_range(distance, 0, 1, 0, 255))
-                    #b = int(map_range(distance, 0, 1, 0, 255))
-
-                    #r = int(map_range(clamp((p_hit - vertices[0])[0], 0, 1), 0, 1, 0, 255))
-                    #g = int(map_range(clamp((p_hit - vertices[0])[1], 0, 1), 0, 1, 0, 255));
-                    #b = int(map_range(clamp((p_hit - vertices[0])[2], 0, 1), 0, 1, 0, 255));
-
-            # intersectionPoint = origin + t * direction
-
-
-                    #r = abs(int(map_range(u, 0, 1, 0, 255)))
-                    #g = abs(int(map_range(v, 0, 1, 0, 255)))
-                    #b = 0
-
-                    img.putpixel((x, (height - 1) - y), (r, g, b))
-
-
-        img.save("render.png")
-        end = wpt.time()
-
-        print(f"CPU: {(end - start) * 1000}")
-        '''
         
         
         
