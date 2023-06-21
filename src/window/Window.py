@@ -38,6 +38,7 @@ class Window():
         glfw.set_framebuffer_size_callback(self.window, framebuffer_size_callback);
 
         glfw.make_context_current(self.window)
+        glfw.swap_interval(0);
 
         
 

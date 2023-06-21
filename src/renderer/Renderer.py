@@ -6,6 +6,9 @@ from ctypes import *
 
 from Shader import Shader
 
+import time
+import win_precise_time as wpt
+
 class Renderer:
     
     __instance = None
@@ -64,13 +67,19 @@ class Renderer:
     
     
     def render(self):
+        start = wpt.time()
+
         glClear(GL_COLOR_BUFFER_BIT)
         glUseProgram(self.shader.program)
         glBindVertexArray(self.vao)
         glDrawArrays(GL_TRIANGLES, 0, 6)
-        
 
+        end = wpt.time()
+        print(f"Pixel Shader: {(end - start) * 1000}")
         
+        
+        start = wpt.time()
+        '''
         width = 200
         height = 160
         
@@ -150,9 +159,13 @@ class Renderer:
                         g = 77
                         b = 77
 
-                    #r = int(map_range(p_hit[0], 0, 1, 0, 255))
-                    #g = int(map_range(p_hit[1], 0, 1, 0, 255))
-                    #b = int(map_range(p_hit[2], 0, 1, 0, 255))
+                    #r = int(map_range(distance, 0, 1, 0, 255))
+                    #g = int(map_range(distance, 0, 1, 0, 255))
+                    #b = int(map_range(distance, 0, 1, 0, 255))
+
+                    #r = int(map_range(clamp((p_hit - vertices[0])[0], 0, 1), 0, 1, 0, 255))
+                    #g = int(map_range(clamp((p_hit - vertices[0])[1], 0, 1), 0, 1, 0, 255));
+                    #b = int(map_range(clamp((p_hit - vertices[0])[2], 0, 1), 0, 1, 0, 255));
 
             # intersectionPoint = origin + t * direction
 
@@ -165,11 +178,19 @@ class Renderer:
 
 
         img.save("render.png")
+        end = wpt.time()
+
+        print(f"CPU: {(end - start) * 1000}")
+        '''
+        
         
         
         
 def map_range(x, in_min, in_max, out_min, out_max):
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+
+def clamp(n, smallest, largest):
+    return max(smallest, min(n, largest))
 
 
 def normalize(vector):
@@ -184,6 +205,8 @@ def inside_outside_test(v0, v1, v2, p, n):
     c0 = p - v0
     c1 = p - v1
     c2 = p - v2
+
+    # print(c0)
 
     if np.dot(n, np.cross(edge0, c0)) > 0 and np.dot(n, np.cross(edge1, c1)) > 0 and np.dot(n, np.cross(edge2, c2)) > 0:
         return True
