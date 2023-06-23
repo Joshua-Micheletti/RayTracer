@@ -35,7 +35,7 @@ class Renderer:
         glClearColor(0.1, 0.1, 0.1, 1.0)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glDisable(GL_DEPTH_TEST)
+        # glEnable(GL_DEPTH_TEST)
 
         self.shader = Shader("../shaders/vertex.glsl", "../shaders/fragment.glsl")
 
@@ -74,7 +74,6 @@ class Renderer:
         self.model.scale(0.05, 0.05, 0.05)
         self.model.move(0, -1, 0)
 
-
         shader_data = (GLfloat * len(self.model.vertices))(*self.model.vertices)
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.ssbo)
@@ -84,20 +83,28 @@ class Renderer:
 
         self.camera = Camera.getInstance()
 
+        self.render_time = 0
+
     
     def render(self):
         start = wpt.time()
 
         glClear(GL_COLOR_BUFFER_BIT)
         glUseProgram(self.shader.program)
-        glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "model"), 1, GL_FALSE, self.model.model_matrix)
-        glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "camera"), 1, GL_FALSE, self.camera.get_view_matrix())
-        # print(self.model.model_matrix)
+        glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "inModel"), 1, GL_FALSE, self.model.model_matrix)
+        # glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "inView"), 1, GL_FALSE, self.camera.get_view_matrix())
+        # glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "inProjection"), 1, GL_FALSE, self.camera.projection_matrix)
+        glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "inInverseViewProjection"), 1, GL_FALSE, self.camera.get_inv_view_proj_matrix())
+        glUniform3f(glGetUniformLocation(self.shader.program, "inEye"), self.camera.position[0], self.camera.position[1], self.camera.position[2])
+        # glUniform3f(glGetUniformLocation(self.shader.program, "inUp"), self.camera.up[0], self.camera.up[1], self.camera.up[2])
+        # glUniform3f(glGetUniformLocation(self.shader.program, "inRight"), self.camera.right[0], self.camera.right[1], self.camera.right[2])
+        # glUniform3f(glGetUniformLocation(self.shader.program, "inFront"), self.camera.front[0], self.camera.front[1], self.camera.front[2])
+        glUniform3f(glGetUniformLocation(self.shader.program, "inLight"), 2.0, 2.0, 1.0)
         glBindVertexArray(self.vao)
         glDrawArrays(GL_TRIANGLES, 0, 6)
 
         end = wpt.time()
-        print(f"Pixel Shader: {(end - start) * 1000}")
+        self.render_time = end - start
 
         
 
