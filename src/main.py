@@ -18,9 +18,9 @@ def main():
         # current_time = wpt.time()
         
         # if dt > printTick:
-        #     print(f"GameLoop: {round(exec_time * 1000, 2)}")
-        #     print(f"Rendering: {round(renderer.render_time * 1000, 2)}")
-        #     printClock += printTick
+            # print(f"GameLoop: {round(exec_time * 1000, 2)}")
+        print(f"Rendering: {round(renderer.render_time * 1000, 2)}")
+            # printClock += printTick
 
         renderer.render()
         # Swap front and back buffers

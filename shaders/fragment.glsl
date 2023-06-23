@@ -36,7 +36,7 @@ float inside_outside_test(vec3 v0, vec3 v1, vec3 v2, vec3 p, vec3 n) {
     }
 }
 
-float[5] ray_triangle_collision(vec3 ray_origin, vec3 ray_direction, vec3 v0, vec3 v1, vec3 v2) {
+float[8] ray_triangle_collision(vec3 ray_origin, vec3 ray_direction, vec3 v0, vec3 v1, vec3 v2) {
     vec3 p_hit = vec3(0, 0, 0);
 
     float hit = 0;
@@ -64,12 +64,15 @@ float[5] ray_triangle_collision(vec3 ray_origin, vec3 ray_direction, vec3 v0, ve
         }
     }
 
-    float[5] result;
+    float[8] result;
     result[0] = p_hit.x;
     result[1] = p_hit.y;
     result[2] = p_hit.z;
     result[3] = hit;
     result[4] = t;
+    result[5] = normal.x;
+    result[6] = normal.y;
+    result[7] = normal.z;
 
     return(result);
 }
@@ -97,7 +100,7 @@ void main() {
     vec3 origin = eye;
     vec3 direction = normalize(far.xyz - near.xyz);
 
-    float[5] nearest_hit;
+    float[8] nearest_hit;
     nearest_hit[4] = 9999999;
 
     for (int i = 0; i <= vertices.length(); i += 9) {
@@ -110,20 +113,18 @@ void main() {
         v2 = model * v2;
 
         // vec4 p_hit = ray_triangle_collision(origin, direction, v0.xyz, v1.xyz, v2.xyz);
-        float[5] result = ray_triangle_collision(origin, direction, v0.xyz, v1.xyz, v2.xyz);
+        float[8] result = ray_triangle_collision(origin, direction, v0.xyz, v1.xyz, v2.xyz);
 
         if (result[3] == 1) {
             // color = vec3(0.1, 0.5, 1.0);
             if (result[4] < nearest_hit[4]) {
                 nearest_hit = result;
-                color = vec3(1.0, 1.0, 1.0);
             }
         }
     }
 
     if (nearest_hit[3] == 1) {
         color = vec3(0.1, 0.5, 1.0);
-        color = normalize(light - vec3(nearest_hit[0], nearest_hit[1], nearest_hit[2]));
         for (int j = 0; j <= vertices.length(); j += 9) {
             vec4 v0_shadow = vec4(vertices[j    ], vertices[j + 1], vertices[j + 2], 1.0);
             vec4 v1_shadow = vec4(vertices[j + 3], vertices[j + 4], vertices[j + 5], 1.0);
@@ -132,12 +133,12 @@ void main() {
             v0_shadow = model * v0_shadow;
             v1_shadow = model * v1_shadow;
             v2_shadow = model * v2_shadow;
-
-            float[5] result = ray_triangle_collision(vec3(nearest_hit[0], nearest_hit[1], nearest_hit[2]), normalize(light - vec3(nearest_hit[0], nearest_hit[1], nearest_hit[2])), v0_shadow.xyz, v1_shadow.xyz, v2_shadow.xyz);
+            float t = 0.0001;
+            float[8] result = ray_triangle_collision(vec3(nearest_hit[0] + nearest_hit[5] * t, nearest_hit[1] + nearest_hit[6] * t, nearest_hit[2] + nearest_hit[7] * t), normalize(light - vec3(nearest_hit[0] + nearest_hit[5] * t, nearest_hit[1] + nearest_hit[6] * t, nearest_hit[2] + nearest_hit[7] * t)), v0_shadow.xyz, v1_shadow.xyz, v2_shadow.xyz);
 
             if (result[3] == 1) {
-                // color = vec3(0.1, 0.5, 1.0) * 0.8;
-                color = vec3(1, 0.5, 0.1);
+                color = vec3(0.1, 0.5, 1.0) * 0.5;
+                // color = vec3(1, 0.5, 0.1);
             }
         }
     }
