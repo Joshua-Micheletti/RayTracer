@@ -2,6 +2,7 @@ import glfw
 import time
 from renderer.Renderer import Renderer
 from camera.Camera import Camera
+from data.Data import Data
 
 first_mouse = True
 lastx = 0
@@ -173,17 +174,17 @@ class Controller:
             
     def update(self, dt):
         if self.states["player_up"]:
-            Renderer.getInstance().model.move(0 * dt, 1 * dt, 0 * dt)
+            Data.getInstance().move_light(0 * dt, 1 * dt, 0 * dt)
         if self.states["player_down"]:
-            Renderer.getInstance().model.move(0 * dt,-1 * dt, 0 * dt)
+            Data.getInstance().move_light(0 * dt,-1 * dt, 0 * dt)
         if self.states["player_left"]:
-            Renderer.getInstance().model.move(-1 * dt, 0 * dt, 0 * dt)
+            Data.getInstance().move_light(-1 * dt, 0 * dt, 0 * dt)
         if self.states["player_right"]:
-            Renderer.getInstance().model.move(1 * dt, 0 * dt, 0 * dt)
+            Data.getInstance().move_light(1 * dt, 0 * dt, 0 * dt)
         if self.states["player_forward"]:
-            Renderer.getInstance().model.move(0 * dt, 0 * dt, 1 * dt)
+            Data.getInstance().move_light(0 * dt, 0 * dt, 1 * dt)
         if self.states["player_backward"]:
-            Renderer.getInstance().model.move(0 * dt, 0 * dt, -1 * dt)
+            Data.getInstance().move_light(0 * dt, 0 * dt, -1 * dt)
 
         if self.states["camera_forward"]:
             Camera.getInstance().forward(1 * dt)

@@ -8,9 +8,19 @@ in vec3 light;
 
 out vec4 fragColor;
 
-layout (std430, binding = 1) buffer shader_data
+layout (std430, binding = 1) buffer vertex
 { 
     float[] vertices;
+};
+
+layout (std430, binding = 2) buffer mats
+{ 
+    mat4[] model_mats;
+};
+
+layout (std430, binding = 3) buffer index
+{
+    float[] indices;
 };
 
 
@@ -103,20 +113,27 @@ void main() {
     float[8] nearest_hit;
     nearest_hit[4] = 9999999;
 
-    for (int i = 0; i <= vertices.length(); i += 9) {
+    int index = 0;
+    float current_counter = 0;
+
+    for (int i = 0; i <= vertices.length(); i += 9, current_counter += 9) {
+
+        if (current_counter >= indices[index]) {
+            current_counter = 0;
+            index += 1;
+        }
+
         vec4 v0 = vec4(vertices[i    ], vertices[i + 1], vertices[i + 2], 1.0);
         vec4 v1 = vec4(vertices[i + 3], vertices[i + 4], vertices[i + 5], 1.0);
         vec4 v2 = vec4(vertices[i + 6], vertices[i + 7], vertices[i + 8], 1.0);
 
-        v0 = model * v0;
-        v1 = model * v1;
-        v2 = model * v2;
+        v0 = model_mats[int(index)] * v0;
+        v1 = model_mats[int(index)] * v1;
+        v2 = model_mats[int(index)] * v2;
 
-        // vec4 p_hit = ray_triangle_collision(origin, direction, v0.xyz, v1.xyz, v2.xyz);
         float[8] result = ray_triangle_collision(origin, direction, v0.xyz, v1.xyz, v2.xyz);
 
         if (result[3] == 1) {
-            // color = vec3(0.1, 0.5, 1.0);
             if (result[4] < nearest_hit[4]) {
                 nearest_hit = result;
             }
@@ -125,20 +142,37 @@ void main() {
 
     if (nearest_hit[3] == 1) {
         color = vec3(0.1, 0.5, 1.0);
-        for (int j = 0; j <= vertices.length(); j += 9) {
+
+        index = 0;
+        current_counter = 0;
+
+        for (int j = 0; j <= vertices.length(); j += 9, current_counter += 9) {
+            if (current_counter >= indices[index]) {
+                current_counter = 0;
+                index += 1;
+            }
+
+            if (index == 2) {
+                break;
+            }
+
+            
+
             vec4 v0_shadow = vec4(vertices[j    ], vertices[j + 1], vertices[j + 2], 1.0);
             vec4 v1_shadow = vec4(vertices[j + 3], vertices[j + 4], vertices[j + 5], 1.0);
             vec4 v2_shadow = vec4(vertices[j + 6], vertices[j + 7], vertices[j + 8], 1.0);
 
-            v0_shadow = model * v0_shadow;
-            v1_shadow = model * v1_shadow;
-            v2_shadow = model * v2_shadow;
-            float t = 0.0001;
-            float[8] result = ray_triangle_collision(vec3(nearest_hit[0] + nearest_hit[5] * t, nearest_hit[1] + nearest_hit[6] * t, nearest_hit[2] + nearest_hit[7] * t), normalize(light - vec3(nearest_hit[0] + nearest_hit[5] * t, nearest_hit[1] + nearest_hit[6] * t, nearest_hit[2] + nearest_hit[7] * t)), v0_shadow.xyz, v1_shadow.xyz, v2_shadow.xyz);
+            v0_shadow = model_mats[int(index)] * v0_shadow;
+            v1_shadow = model_mats[int(index)] * v1_shadow;
+            v2_shadow = model_mats[int(index)] * v2_shadow;
+            float t = 0.00001;
+
+            origin = vec3(nearest_hit[0] + nearest_hit[5] * t, nearest_hit[1] + nearest_hit[6] * t, nearest_hit[2] + nearest_hit[7] * t);
+
+            float[8] result = ray_triangle_collision(origin, normalize(vec4(model_mats[2] * vec4(0, 0, 0, 1)).xyz - origin), v0_shadow.xyz, v1_shadow.xyz, v2_shadow.xyz);
 
             if (result[3] == 1) {
                 color = vec3(0.1, 0.5, 1.0) * 0.5;
-                // color = vec3(1, 0.5, 0.1);
             }
         }
     }
