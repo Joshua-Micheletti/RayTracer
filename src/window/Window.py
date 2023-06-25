@@ -40,7 +40,7 @@ class Window():
         glfw.set_cursor_pos_callback(self.window, mouse_callback);
 
         glfw.make_context_current(self.window)
-        glfw.swap_interval(1)
+        glfw.swap_interval(0)
         glfw.set_input_mode(self.window, glfw.CURSOR, glfw.CURSOR_DISABLED)
 
 

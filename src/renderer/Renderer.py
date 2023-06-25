@@ -79,7 +79,9 @@ class Renderer:
 
         self.render_time = 0
 
-        self.light = np.array([0, 0, 0])
+        self.light_index = 2
+
+        self.light_model = Matrix44.identity()
 
     
     def render(self):
@@ -89,14 +91,13 @@ class Renderer:
         glUseProgram(self.shader.program)
         glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "inInverseViewProjection"), 1, GL_FALSE, self.camera.get_inv_view_proj_matrix())
         glUniform3f(glGetUniformLocation(self.shader.program, "inEye"), self.camera.position[0], self.camera.position[1], self.camera.position[2])
-        glUniform3f(glGetUniformLocation(self.shader.program, "inLight"), self.light[0], self.light[1], self.light[2])
+        glUniform1f(glGetUniformLocation(self.shader.program, "inLightIndex"), self.light_index)
+        glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "inLightModel"), 1, GL_FALSE, self.light_model)
         glBindVertexArray(self.vao)
         glDrawArrays(GL_TRIANGLES, 0, 6)
 
         end = wpt.time()
         self.render_time = end - start
-
-        print(f"Render: {self.render_time * 1000}")
 
         
     def update_vertices(self, vertices):

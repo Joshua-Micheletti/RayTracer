@@ -1,4 +1,4 @@
-from pyrr import Matrix44
+from pyrr import Matrix44, Vector3
 import numpy as np
 import pyrr
 
@@ -44,6 +44,14 @@ class Model:
         self.translation_matrix = Matrix44.from_translation(np.array([self.x, self.y, self.z]))
         self.scale_matrix = Matrix44.from_scale(np.array([self.scale_x, self.scale_y, self.scale_z]))
         self.model_matrix = self.model_matrix * self.translation_matrix * self.scale_matrix
+
+        # for i in range(0, len(self.vertices), 3):
+        #     vertex = Vector3([self.vertices[i], self.vertices[i+1], self.vertices[i+2]])
+        #     vertex = self.model_matrix * vertex
+        #     self.vertices[i]   = vertex[0]
+        #     self.vertices[i+1] = vertex[1]
+        #     self.vertices[i+2] = vertex[2]
+
 
     def move(self, x, y, z):
         if x == 0 and y == 0 and z == 0:

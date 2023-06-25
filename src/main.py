@@ -20,19 +20,32 @@ def main():
 
     tree.scale(0.1, 0.1, 0.1)
     gally.move(5, 0, 0)
-    box.scale(0.02, 0.02, 0.02)
+    box.scale(0.2, 0.2, 0.2)
+    # box.move(-2, 0, 0)
 
     data.load_model(gally)
     data.load_model(tree)
     data.load_model(box)
 
+    # data.move_model(2, -1, 0, 0)
+
+    dt = 0
 
     while not glfw.window_should_close(window.window):
-        controller.update(0.06)
+        start = wpt.time()
+
+        controller.update(dt)
+        data.update()
         renderer.render()
 
         glfw.swap_buffers(window.window)
         glfw.poll_events()
+
+        end = wpt.time()
+        dt = end - start
+        print(f"Total: {dt * 1000}")
+        print(f"FPS: {1 / (dt)}")
+        print(f"Render: {renderer.render_time * 1000}")
         
     glfw.terminate()
     

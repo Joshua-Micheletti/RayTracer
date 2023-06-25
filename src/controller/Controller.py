@@ -173,18 +173,20 @@ class Controller:
 
             
     def update(self, dt):
+        player_target = 2
+
         if self.states["player_up"]:
-            Data.getInstance().move_light(0 * dt, 1 * dt, 0 * dt)
+            Data.getInstance().move_model(player_target, 0 * dt, 1*dt, 0*dt)
         if self.states["player_down"]:
-            Data.getInstance().move_light(0 * dt,-1 * dt, 0 * dt)
+            Data.getInstance().move_model(player_target, 0*dt, -1*dt, 0*dt)
         if self.states["player_left"]:
-            Data.getInstance().move_light(-1 * dt, 0 * dt, 0 * dt)
+            Data.getInstance().move_model(player_target, -1*dt, 0*dt, 0*dt)
         if self.states["player_right"]:
-            Data.getInstance().move_light(1 * dt, 0 * dt, 0 * dt)
+            Data.getInstance().move_model(player_target, 1*dt, 0*dt, 0*dt)
         if self.states["player_forward"]:
-            Data.getInstance().move_light(0 * dt, 0 * dt, 1 * dt)
+            Data.getInstance().move_model(player_target, 0*dt, 0 * dt, 1*dt)
         if self.states["player_backward"]:
-            Data.getInstance().move_light(0 * dt, 0 * dt, -1 * dt)
+            Data.getInstance().move_model(player_target, 0*dt, 0*dt, -1*dt)
 
         if self.states["camera_forward"]:
             Camera.getInstance().forward(1 * dt)
