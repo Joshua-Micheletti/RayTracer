@@ -21,19 +21,12 @@ class Data:
         self.vertices = np.empty([0])
         self.vertices_sizes = np.empty([0])
         self.model_matrixes = np.empty([0])
+        self.colors = np.empty([0])
         self.models = np.empty([0])
+        self.normals = np.empty([0])
 
         self.to_update = True
 
-    # def move_light(self, x, y, z):
-    #     self.models[2].move(x, y, z)
-
-    #     # for i in range(16):
-    #     #     self.model_matrixes[2 * 16 - 1 + i] = self.models[2].model_matrix[int(i / 4)][3 - (i % 4)]
-
-    #     Renderer.getInstance().update_model_mats(self.model_matrixes)
-    #     Renderer.getInstance().light = np.array([self.models[2].x, self.models[2].y, self.models[2].z])
-    #     Renderer.getInstance().light_model = self.models[2].model_matrix
 
     def update(self):
         if self.to_update:
@@ -56,6 +49,7 @@ class Data:
         self.models = np.append(self.models, model)
         self.load_vertices(model.vertices)
         self.load_model_mats(model.model_matrix)
+        self.load_normals(model.normals)
 
     def load_vertices(self, vertices):
         self.vertices = np.append(self.vertices, vertices)
@@ -66,6 +60,14 @@ class Data:
     def load_model_mats(self, model_mat):
         self.model_matrixes = np.append(self.model_matrixes, model_mat)
         Renderer.getInstance().update_model_mats(self.model_matrixes)
+
+    def set_color(self, index, r, g, b):
+        self.colors = np.append(self.colors, [r, g, b])
+        Renderer.getInstance().update_colors(self.colors)
+
+    def load_normals(self, normals):
+        self.normals = np.append(self.normals, normals)
+        Renderer.getInstance().update_normals(self.normals)
 
     
 

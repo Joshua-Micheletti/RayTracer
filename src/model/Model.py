@@ -21,6 +21,7 @@ class Model:
         self.scale_matrix = Matrix44.identity()
 
         self.vertices = []
+        self.normals = []
 
         data = pywavefront.Wavefront(filepath, collect_faces = True)
 
@@ -38,19 +39,26 @@ class Model:
                 self.vertices.append(data.vertices[face[2]][1])
                 self.vertices.append(data.vertices[face[2]][2])
 
+        for i in range(0, len(self.vertices), 9):
+            v0 = np.array([self.vertices[i], self.vertices[i + 1], self.vertices[i + 2]])
+            v1 = np.array([self.vertices[i + 3], self.vertices[i + 4], self.vertices[i + 5]])
+            v2 = np.array([self.vertices[i + 6], self.vertices[i + 7], self.vertices[i + 8]])
+
+            edge01 = v1 - v0
+            edge02 = v2 - v0
+
+            normal = normalize(np.cross(edge01, edge02))
+
+            self.normals.append(normal[0])
+            self.normals.append(normal[1])
+            self.normals.append(normal[2])
+
 
     def calculate_model_matrix(self):
         self.model_matrix = Matrix44.identity()
         self.translation_matrix = Matrix44.from_translation(np.array([self.x, self.y, self.z]))
         self.scale_matrix = Matrix44.from_scale(np.array([self.scale_x, self.scale_y, self.scale_z]))
         self.model_matrix = self.model_matrix * self.translation_matrix * self.scale_matrix
-
-        # for i in range(0, len(self.vertices), 3):
-        #     vertex = Vector3([self.vertices[i], self.vertices[i+1], self.vertices[i+2]])
-        #     vertex = self.model_matrix * vertex
-        #     self.vertices[i]   = vertex[0]
-        #     self.vertices[i+1] = vertex[1]
-        #     self.vertices[i+2] = vertex[2]
 
 
     def move(self, x, y, z):
@@ -96,4 +104,6 @@ class Model:
         return(self)
 
 
+def normalize(vector):
+    return vector / np.linalg.norm(vector)
         

@@ -66,14 +66,12 @@ class Renderer:
 
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), c_void_p(0))
 
-        self.vertices = None
+
         self.vertices = glGenBuffers(1)
-
-        self.model_mats = None
         self.model_mats = glGenBuffers(1)
-
-        self.indices = None
         self.indices = glGenBuffers(1)
+        self.colors = glGenBuffers(1)
+        self.normals = glGenBuffers(1)
 
         self.camera = Camera.getInstance()
 
@@ -124,6 +122,21 @@ class Renderer:
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, self.model_mats)
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
         
+    def update_colors(self, colors):
+        data = (GLfloat * len(colors))(*colors)
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.colors)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, self.colors)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+
+    def update_normals(self, normals):
+        data = (GLfloat * len(normals))(*normals)
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.normals)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, self.normals)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
 
 
 def normalize(vector):

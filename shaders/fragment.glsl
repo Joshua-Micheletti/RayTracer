@@ -8,6 +8,7 @@ in mat4 lightModel;
 
 out vec4 fragColor;
 
+
 layout (std430, binding = 1) buffer vertex
 { 
     float[] vertices;
@@ -23,14 +24,41 @@ layout (std430, binding = 3) buffer index
     float[] indices;
 };
 
+layout (std430, binding = 4) buffer color
+{
+    float[] colors;
+};
+
+layout (std430, binding = 5) buffer normal
+{
+    float[] normals;
+};
+
 
 struct hit_t {
     bool exists;
     vec3 pos;
     float t;
     vec3 normal;
+    int index;
 };
 
+
+vec3 camera_ray_direction(vec2 pixel, mat4 inverseVP) {
+    // coordinate of end ray in screen space
+    vec4 screenSpaceFar = vec4(position.xy, 1.0, 1.0);
+    // coordinate of origin ray in screen space
+    vec4 screenSpaceNear = vec4(position.xy, 0.0, 1.0);
+    
+    // coordinate of end ray in world space
+    vec4 far = inverseViewProjection * screenSpaceFar;
+    far /= far.w;
+    // coordinate of origin ray in world space
+    vec4 near = inverseViewProjection * screenSpaceNear;
+    near /= near.w;
+
+    return(normalize(far.xyz - near.xyz));
+}
 
 float map(float x, float in_min, float in_max, float out_min, float out_max) {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -54,7 +82,7 @@ float inside_outside_test(vec3 v0, vec3 v1, vec3 v2, vec3 p, vec3 n) {
     }
 }
 
-hit_t ray_triangle_collision(vec3 ray_origin, vec3 ray_direction, vec3 v0, vec3 v1, vec3 v2) {
+hit_t ray_triangle_collision(vec3 ray_origin, vec3 ray_direction, vec3 v0, vec3 v1, vec3 v2, vec3 normal) {
     hit_t result;
 
     result.exists = false;
@@ -62,8 +90,8 @@ hit_t ray_triangle_collision(vec3 ray_origin, vec3 ray_direction, vec3 v0, vec3 
     vec3 edge01 = v1 - v0;
     vec3 edge02 = v2 - v0;
 
-    vec3 normal = normalize(cross(edge01, edge02));
-    result.normal = normal;
+    vec3 normal_ = normalize(cross(edge01, edge02));
+    result.normal = normal_;
 
     float dist = -dot(normal, v0);
 
@@ -75,7 +103,7 @@ hit_t ray_triangle_collision(vec3 ray_origin, vec3 ray_direction, vec3 v0, vec3 
         if (result.t > 0.0) {
             result.pos = ray_origin + (result.t * ray_direction);
 
-            if (inside_outside_test(v0, v1, v2, result.pos, normal) == 1.0) {
+            if (inside_outside_test(v0, v1, v2, result.pos, normal_) == 1.0) {
                 result.exists = true;
             }
         }
@@ -85,30 +113,7 @@ hit_t ray_triangle_collision(vec3 ray_origin, vec3 ray_direction, vec3 v0, vec3 
 }
 
 
-
-
-void main() {
-    // color vector
-    vec3 color = vec3(0.1, 0.1, 0.1);
-
-    // FIRST RAY CALCULATION (geometry)
-
-    // coordinate of end ray in screen space
-    vec4 screenSpaceFar = vec4(position.xy, 1.0, 1.0);
-    // coordinate of origin ray in screen space
-    vec4 screenSpaceNear = vec4(position.xy, 0.0, 1.0);
-    
-    // coordinate of end ray in world space
-    vec4 far = inverseViewProjection * screenSpaceFar;
-    far /= far.w;
-    // coordinate of origin ray in world space
-    vec4 near = inverseViewProjection * screenSpaceNear;
-    near /= near.w;
-    
-    // view ray
-    vec3 origin = eye;
-    vec3 direction = normalize(far.xyz - near.xyz);
-
+hit_t calculate_ray(vec3 ray_origin, vec3 ray_direction, bool shadow) {
     // return value of the collision
     hit_t nearest_hit;
     nearest_hit.exists = false;
@@ -119,84 +124,98 @@ void main() {
     int model_index = 0;
     // counter of vertices inside the model
     float vertex_index = 0;
+    int normal_index = 0;
 
-    model_index = 0;
-    vertex_index = 0;
-
-    // for (int k = 0; k <= vertices.length(); k += 3, vertex_index += 3) {
-    //     if (vertex_index >= indices[model_index]) {
-    //         vertex_index = 0;
-    //         model_index += 1;
-    //     }
-
-    //     vec4 v = vec4(vertices[k], vertices[k+1], vertices[k+2], 1.0);
-        
-    //     v = model_mats[model_index] * v;
-
-    //     vertices[k]   = v.x;
-    //     vertices[k+1] = v.y;
-    //     vertices[k+2] = v.z;
-    // }
-
-
-    for (int i = 0; i <= vertices.length(); i += 9, vertex_index += 9) {
+    for (int i = 0; i <= vertices.length(); i += 9, vertex_index += 9, normal_index += 3) {
 
         if (vertex_index >= indices[model_index]) {
             vertex_index = 0;
             model_index += 1;
         }
 
+        if (shadow) {
+            if (model_index == lightIndex) {
+                break;
+            }
+        }
+
         vec4 v0 = vec4(vertices[i    ], vertices[i + 1], vertices[i + 2], 1.0);
         vec4 v1 = vec4(vertices[i + 3], vertices[i + 4], vertices[i + 5], 1.0);
         vec4 v2 = vec4(vertices[i + 6], vertices[i + 7], vertices[i + 8], 1.0);
+        vec4 normal = vec4(normals[normal_index], normals[normal_index + 1], normals[normal_index + 2], 0.0);
 
         v0 = model_mats[model_index] * v0;
         v1 = model_mats[model_index] * v1;
         v2 = model_mats[model_index] * v2;
 
-        hit_t hit = ray_triangle_collision(origin, direction, v0.xyz, v1.xyz, v2.xyz);
+        hit_t hit = ray_triangle_collision(ray_origin, ray_direction, v0.xyz, v1.xyz, v2.xyz, normal.xyz);
+        hit.index = model_index;
+
 
         if (hit.exists) {
+            if (shadow) {
+                return(hit);
+            }
+
             if (hit.t < nearest_hit.t) {
                 nearest_hit = hit;
             }
         }
     }
 
-    if (nearest_hit.exists) {
-        color = vec3(0.1, 0.5, 1.0);
+    return(nearest_hit);
+}
 
-        model_index = 0;
-        vertex_index = 0;
+void main() {
+    // color vector
+    vec3 color = vec3(0.1, 0.4, 1.0);
 
-        for (int j = 0; j <= vertices.length(); j += 9, vertex_index += 9) {
-            if (vertex_index >= indices[model_index]) {
-                vertex_index = 0;
-                model_index += 1;
-            }
+    // FIRST RAY CALCULATION (geometry)
+    
+    // view ray
+    vec3 origin = eye;
+    vec3 direction = camera_ray_direction(position.xy, inverseViewProjection);
 
-            if (model_index == lightIndex) {
-                break;
-            }
+    hit_t primary_hit = calculate_ray(origin, direction, false);
 
-            vec4 v0_shadow = vec4(vertices[j    ], vertices[j + 1], vertices[j + 2], 1.0);
-            vec4 v1_shadow = vec4(vertices[j + 3], vertices[j + 4], vertices[j + 5], 1.0);
-            vec4 v2_shadow = vec4(vertices[j + 6], vertices[j + 7], vertices[j + 8], 1.0);
+    if (!primary_hit.exists) {
+        fragColor = vec4(color, 1.0);
+        return;
+    }
 
-            v0_shadow = model_mats[model_index] * v0_shadow;
-            v1_shadow = model_mats[model_index] * v1_shadow;
-            v2_shadow = model_mats[model_index] * v2_shadow;
+    color = vec3(colors[primary_hit.index * 3], colors[primary_hit.index * 3 + 1], colors[primary_hit.index * 3 + 2]);
 
-            float t = 0.00001;
+    float t = 0.1;
 
-            origin = vec3(nearest_hit.pos + nearest_hit.normal * t);
+    // REFLECTION PASS
+    origin = primary_hit.pos + primary_hit.normal * t;
+    direction = normalize(direction - 2 * primary_hit.normal * dot(direction, primary_hit.normal));
 
-            hit_t hit = ray_triangle_collision(origin, normalize(vec4(lightModel * vec4(0, 0, 0, 1)).xyz - origin), v0_shadow.xyz, v1_shadow.xyz, v2_shadow.xyz);
+    hit_t reflection_hit = calculate_ray(origin, direction, false);
 
-            if (hit.exists) {
-                color = vec3(0.1, 0.5, 1.0) * 0.5;
-            }
-        }
+    if (reflection_hit.exists) {
+        origin = reflection_hit.pos + reflection_hit.normal * t;
+        direction = origin - vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
+
+        hit_t reflection_shadow_hit = calculate_ray(origin, direction, true);
+
+        if (reflection_shadow_hit.exists) {
+            color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]) * 0.5;
+            // color = normalize(color);
+        } else {
+            color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]);
+            // color = normalize(color);
+        }  
+    }
+
+    // SHADOW PASS
+    origin = vec3(primary_hit.pos + primary_hit.normal * t);
+    direction = vec4(lightModel * vec4(0, 0, 0, 1)).xyz - origin;
+    
+    hit_t shadow_hit = calculate_ray(origin, direction, true);
+
+    if (shadow_hit.exists && shadow_hit.t <= 1) {
+        color *= 0.5;
     }
 
     fragColor = vec4(color, 1.0);

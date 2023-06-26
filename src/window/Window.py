@@ -30,6 +30,8 @@ class Window():
             glfw.terminate()
             return
 
+        glfw.set_window_pos(self.window, 960 - 100, 540 - 80)
+
         self.projection_matrix = Matrix44.orthogonal_projection(-width/2, width/2, -height/2, height/2, -1, 1)
 
         self.width = width
@@ -40,7 +42,7 @@ class Window():
         glfw.set_cursor_pos_callback(self.window, mouse_callback);
 
         glfw.make_context_current(self.window)
-        glfw.swap_interval(0)
+        glfw.swap_interval(1)
         glfw.set_input_mode(self.window, glfw.CURSOR, glfw.CURSOR_DISABLED)
 
 

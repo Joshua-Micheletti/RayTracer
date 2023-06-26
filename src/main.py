@@ -21,13 +21,14 @@ def main():
     tree.scale(0.1, 0.1, 0.1)
     gally.move(5, 0, 0)
     box.scale(0.2, 0.2, 0.2)
-    # box.move(-2, 0, 0)
 
     data.load_model(gally)
     data.load_model(tree)
     data.load_model(box)
 
-    # data.move_model(2, -1, 0, 0)
+    data.set_color(0, 0.5, 0.5, 0.5)
+    data.set_color(1, 0.1, 0.9, 0.1)
+    data.set_color(2, 0.1, 0.1, 0.9)
 
     dt = 0
 
@@ -43,9 +44,9 @@ def main():
 
         end = wpt.time()
         dt = end - start
-        print(f"Total: {dt * 1000}")
-        print(f"FPS: {1 / (dt)}")
-        print(f"Render: {renderer.render_time * 1000}")
+        # print(f"Total: {dt * 1000}")
+        # print(f"FPS: {1 / (dt)}")
+        # print(f"Render: {renderer.render_time * 1000}")
         
     glfw.terminate()
     
