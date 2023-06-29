@@ -10,6 +10,8 @@ out vec4 fragColor;
 
 #define TRIANGLE 0
 #define SPHERE 1
+#define PLANE 2
+#define BOX 3
 
 
 
@@ -87,6 +89,48 @@ float inside_outside_test(vec3 v0, vec3 v1, vec3 v2, vec3 p, vec3 n) {
     }
 }
 
+hit_t ray_plane_collision(vec3 ray_origin, vec3 ray_direction, vec3 position, vec3 normal) {
+    hit_t hit;
+    hit.exists = false;
+    hit.primitive = PLANE;
+
+    float denom = dot(normal, ray_direction);
+    float t;
+
+    if (abs(denom) > 0.0000001) {
+        t = dot(position - ray_origin, normal) / denom;
+        
+        if (t > 0) {
+            hit.exists = true;
+            hit.t = t;
+            hit.normal = normal;
+            hit.pos = ray_origin + ray_direction * t;
+        }
+    }
+
+    return(hit);
+}
+
+hit_t calculate_planes(vec3 ray_origin, vec3 ray_direction, bool shadow) {
+    hit_t nearest_hit;
+    nearest_hit.exists = false;
+    nearest_hit.t = 9999999;
+
+    vec3 position = vec3(0, 0, 0);
+    vec3 normal = vec3(0, 1, 0);
+
+    hit_t hit = ray_plane_collision(ray_origin, ray_direction, position, normal);
+
+    if (hit.exists) {
+        if (hit.t < nearest_hit.t) {
+            nearest_hit = hit;
+        }
+    }
+
+    return(nearest_hit);
+}
+
+
 hit_t ray_sphere_collision(vec3 ray_origin, vec3 ray_direction, vec3 sphere_center, float sphere_radius) {
         hit_t hit;
         hit.exists = false;
@@ -131,20 +175,14 @@ hit_t calculate_spheres(vec3 ray_origin, vec3 ray_direction, bool shadow) {
     nearest_hit.exists = false;
     nearest_hit.t = 999999;
 
-    vec3 center = vec3(-1.0, -1.0, -1.0);
+    vec3 center = vec3(-1.0, 1.0, -1.0);
 
     float radius = 0.5;
 
     hit_t hit = ray_sphere_collision(ray_origin, ray_direction, center, radius);
 
     if (hit.exists) {
-        if (shadow) {
-            if (hit.t <= 1 && hit.t > 0) {
-                return(hit);
-            }
-        }
-
-        else if (hit.t < nearest_hit.t) {
+        if (hit.t < nearest_hit.t) {
             nearest_hit = hit;
         }
     }
@@ -222,11 +260,7 @@ hit_t calculate_triangles(vec3 ray_origin, vec3 ray_direction, bool shadow) {
 
 
         if (hit.exists) {
-            if (shadow) {
-                return(hit);
-            }
-
-            else if (hit.t < nearest_hit.t) {
+            if (hit.t < nearest_hit.t) {
                 nearest_hit = hit;
             }
         }
@@ -235,49 +269,118 @@ hit_t calculate_triangles(vec3 ray_origin, vec3 ray_direction, bool shadow) {
     return(nearest_hit);
 }
 
+hit_t ray_box_collision(vec3 ray_origin, vec3 ray_direction, vec3 b0, vec3 b1) {
+    hit_t hit;
+    hit.exists = false;
+    hit.primitive = BOX;
+
+    vec3 invdir = 1 / ray_direction;
+
+    vec3 tbot = invdir * (b0 - ray_origin);
+    vec3 ttop = invdir * (b1 - ray_origin);
+    vec3 tmin = min(ttop, tbot);
+    vec3 tmax = max(ttop, tbot);
+    vec2 t = max(tmin.xx, tmin.yz);
+    float t0 = max(t.x, t.y);
+    t = min(tmax.xx, tmax.yz);
+    float t1 = min(t.x, t.y);
+
+    if (t1 <= max(t0, 0.0)) {
+        return(hit);
+    }
+
+    hit.exists = true;
+    hit.t = t0;
+    hit.pos = ray_origin + ray_direction * t0;
+
+    vec3 near = b0;
+    vec3 far = b1;
+
+    float epsi = 0.00001;
+
+    if (abs(hit.pos.x - near.x) < epsi) {
+        hit.normal = vec3(-1, 0, 0);
+    } else if (abs(hit.pos.x - far.x) < epsi) {
+        hit.normal = vec3(1, 0, 0);
+    } else if (abs(hit.pos.y - near.y) < epsi) {
+        hit.normal = vec3(0, -1, 0);
+    } else if (abs(hit.pos.y - far.y) < epsi) {
+        hit.normal = vec3(0, 1, 0);
+    } else if (abs(hit.pos.z - near.z) < epsi) {
+        hit.normal = vec3(0, 0, -1);
+    } else if (abs(hit.pos.z - far.z) < epsi) {
+        hit.normal = vec3(0, 0, 1);
+    }
+
+
+    return(hit);
+}
+
+hit_t calculate_boxes(vec3 ray_origin, vec3 ray_direction, bool shadow) {
+    hit_t nearest_hit;
+    nearest_hit.exists = false;
+    nearest_hit.t = 9999999;
+
+    vec3 b0 = vec3(-2, 2, 2);
+    vec3 b1 = vec3(-1, 3, 3);
+
+    hit_t hit = ray_box_collision(ray_origin, ray_direction, b0, b1);
+
+    if (hit.exists) {
+        if (hit.t < nearest_hit.t) {
+            nearest_hit = hit;
+        }
+    }
+
+    return(nearest_hit);
+}
+
+
+
+
+hit_t find_nearest_hit(hit_t h0, hit_t h1, hit_t h2, hit_t h3) {
+    hit_t nearest_hit;
+    nearest_hit.exists = false;
+
+    nearest_hit = h0;
+
+    if (!nearest_hit.exists && h1.exists) {
+        nearest_hit = h1;
+    } else if (nearest_hit.exists && h1.exists && h1.t < nearest_hit.t) {
+        nearest_hit = h1;
+    }
+
+    if (!nearest_hit.exists && h2.exists) {
+        nearest_hit = h2;
+    } else if (nearest_hit.exists && h2.exists && h2.t < nearest_hit.t) {
+        nearest_hit = h2;
+    }
+
+    if (!nearest_hit.exists && h3.exists) {
+        nearest_hit = h3;
+    } else if (nearest_hit.exists && h3.exists && h3.t < nearest_hit.t) {
+        nearest_hit = h3;
+    }
+
+    return(nearest_hit);
+}
+
+
 hit_t calculate_ray(vec3 ray_origin, vec3 ray_direction, bool shadow) {
 
     hit_t triangle_hit = calculate_triangles(ray_origin, ray_direction, shadow);
 
     hit_t sphere_hit = calculate_spheres(ray_origin, ray_direction, shadow);
 
+    hit_t plane_hit = calculate_planes(ray_origin, ray_direction, shadow);
 
-    // if (shadow) {
-    //     if (triangle_hit.exists && sphere_hit.exists) {
-    //         return(triangle_hit);
-    //     }
+    hit_t box_hit = calculate_boxes(ray_origin, ray_direction, shadow);
 
-    //     if (triangle_hit.exists) {
-    //         return(triangle_hit);
-    //     }
 
-    //     if (sphere_hit.exists) {
-    //         return(sphere_hit);
-    //     }
+    hit_t nearest_hit = find_nearest_hit(triangle_hit, sphere_hit, plane_hit, box_hit);
 
-    //     return(triangle_hit);
-    // }
 
-    if (triangle_hit.exists && sphere_hit.exists) {
-        if (triangle_hit.t < sphere_hit.t) {
-            return(triangle_hit);
-        } else {
-            return(sphere_hit);
-        }
-    }
-
-    if (sphere_hit.exists) {
-        return(sphere_hit);
-    }
-
-    if (triangle_hit.exists) {
-        return(triangle_hit);
-    }
-
-    hit_t none;
-    none.exists = false;
-
-    return(none);
+    return(nearest_hit);
 }
 
 	
@@ -285,30 +388,17 @@ hit_t calculate_ray(vec3 ray_origin, vec3 ray_direction, bool shadow) {
 
 void main() {
     // color vector
+    vec3 void_color = vec3(0.1, 0.4, 1.0);
     vec3 color = vec3(0.1, 0.4, 1.0);
     vec3 sphere_color = vec3(1.0, 0.2, 0.1);
+    vec3 plane_color = vec3(0.1, 1.0, 0.4);
+    vec3 box_color = vec3(1.0, 0.1, 1.0);
 
     // FIRST RAY CALCULATION (geometry)
     
     // view ray
     vec3 origin = eye;
     vec3 direction = camera_ray_direction(position.xy, inverseViewProjection);
-
-    // bool hit = false;
-
-    // for (float i = -5; i < 5; i++) {
-    //     if (ray_sphere_collision(origin, direction, vec3(i, 0, 0), 0.4)) {
-    //         hit = true;
-    //     }
-    // }
-
-    // if (hit) {
-    //     color = vec3(1, 0.2, 0.5);
-    // }
-
-    // if (ray_sphere_collision(origin, direction, vec3(0.0), 1.0)) {
-    //     color = vec3(1.0, 1.0, 1.0);
-    // }
 
 
     hit_t primary_hit = calculate_ray(origin, direction, false);
@@ -320,11 +410,13 @@ void main() {
 
     if (primary_hit.primitive == TRIANGLE) {
         color = vec3(colors[primary_hit.index * 3], colors[primary_hit.index * 3 + 1], colors[primary_hit.index * 3 + 2]);
-    } else {
+    } else if (primary_hit.primitive == SPHERE) {
         color = sphere_color;
+    } else if (primary_hit.primitive == PLANE) {
+        color = plane_color;
+    } else {
+        color = box_color;
     }
-
-    // color = vec3(1.0);
 
     float t = 0.0001;
 
@@ -343,19 +435,27 @@ void main() {
         if (reflection_shadow_hit.exists) {
             if (reflection_hit.primitive == TRIANGLE) {
                 color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]) * 0.5;
-            } else {
+            } else if (reflection_hit.primitive == SPHERE) {
                 color += sphere_color * 0.5;
+            } else if (reflection_hit.primitive == PLANE) {
+                color += plane_color * 0.5;
+            } else {
+                color += box_color * 0.5;
             }
-            // color = normalize(color);
+
         } else {
             if (reflection_hit.primitive == TRIANGLE) {
                 color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]);
-            } else {
+            } else if (reflection_hit.primitive == SPHERE) {
                 color += sphere_color;
+            } else if (reflection_hit.primitive == PLANE) {
+                color += plane_color;
+            } else {
+                color += box_color;
             }
-            
-            // color = normalize(color);
         }  
+    } else {
+        color += void_color * 0.5;
     }
 
     // SHADOW PASS
@@ -367,7 +467,6 @@ void main() {
     hit_t shadow_hit = calculate_ray(origin, direction, true);
 
     float t_to_light = (light_position.x - origin.x) / direction.x;
-
 
     if (shadow_hit.exists && shadow_hit.t <= t_to_light) {
         color *= 0.5;
