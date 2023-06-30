@@ -24,6 +24,9 @@ class Window():
         if not glfw.init():
             return
 
+        glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 4)
+        glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 6)
+
         self.window = glfw.create_window(width, height, name, None, None)
 
         if not self.window:

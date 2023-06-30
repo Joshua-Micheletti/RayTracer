@@ -2,6 +2,7 @@ from PIL import Image
 import numpy as np
 import colorsys
 from OpenGL.GL import *
+from OpenGL.GL.shaders import compileProgram, compileShader
 from ctypes import *
 
 from Shader import Shader
@@ -15,6 +16,7 @@ from pyrr import Matrix44
 
 from model.Model import Model
 from camera.Camera import Camera
+
 
 class Renderer:
     
@@ -40,32 +42,26 @@ class Renderer:
         self.shader = Shader("../shaders/vertex.glsl", "../shaders/fragment.glsl")
 
         vertices = [
-            -1, -1, 0.0,
-             1, -1, 0.0,
-             1,  1, 0.0,
-            -1, -1, 0.0,
-            -1,  1, 0.0,
-             1,  1, 0.0
+            -1.0,  1.0, 0.0, 0.0, 1.0,
+			-1.0, -1.0, 0.0, 0.0, 0.0,
+			 1.0,  1.0, 0.0, 1.0, 1.0,
+			 1.0, -1.0, 0.0, 1.0, 0.0
         ]
 
         vertices = (GLfloat * len(vertices))(*vertices)
 
         self.vbo = None
-        self.vbo = glGenBuffers(1, self.vbo)
+        self.vao = None
 
+        self.vao = glGenVertexArrays(1, self.vao)
+        self.vbo = glGenBuffers(1, self.vbo)
+        glBindVertexArray(self.vao)
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
-
-
-        self.vao = None
-        self.vao = glGenVertexArrays(1, self.vao)
-
-        glBindVertexArray(self.vao)
-
         glEnableVertexAttribArray(0)
-
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), c_void_p(0))
-
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), c_void_p(0))
+        glEnableVertexAttribArray(1)
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), c_void_p(3 * sizeof(GLfloat)))
 
         self.vertices = glGenBuffers(1)
         self.model_mats = glGenBuffers(1)
@@ -81,18 +77,62 @@ class Renderer:
 
         self.light_model = Matrix44.identity()
 
+        compute_shader_source = ""
+
+        self.compute_shader = glCreateShader(GL_COMPUTE_SHADER)
+
+        text = open("../shaders/compute.glsl", 'r')
+        compute_shader_source = text.read()
+
+        glShaderSource(self.compute_shader, compute_shader_source)
+        glCompileShader(self.compute_shader)
+
+        self.program_id = glCreateProgram()
+        glAttachShader(self.program_id, self.compute_shader)
+        glLinkProgram(self.program_id)
+
+        self.texture = 0
+        self.texture = glGenTextures(1, self.texture)
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_2D, self.texture)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+
+        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, 200, 160)
+        glBindImageTexture(0, self.texture, 1, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F)        
+
+        self.screen_shader = Shader("../shaders/screen_vertex.glsl", "../shaders/screen_fragment.glsl")
+
     
     def render(self):
         start = wpt.time()
 
-        glClear(GL_COLOR_BUFFER_BIT)
-        glUseProgram(self.shader.program)
-        glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "inInverseViewProjection"), 1, GL_FALSE, self.camera.get_inv_view_proj_matrix())
-        glUniform3f(glGetUniformLocation(self.shader.program, "inEye"), self.camera.position[0], self.camera.position[1], self.camera.position[2])
-        glUniform1f(glGetUniformLocation(self.shader.program, "inLightIndex"), self.light_index)
-        glUniformMatrix4fv(glGetUniformLocation(self.shader.program, "inLightModel"), 1, GL_FALSE, self.light_model)
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_2D, self.texture)
+        glBindImageTexture(0, self.texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F)
+
+        glUseProgram(self.program_id)
+
+        glUniformMatrix4fv(glGetUniformLocation(self.program_id, "inverseViewProjection"), 1, GL_FALSE, self.camera.get_inv_view_proj_matrix())
+        glUniform3f(glGetUniformLocation(self.program_id, "eye"), self.camera.position[0], self.camera.position[1], self.camera.position[2])
+        glUniform1f(glGetUniformLocation(self.program_id, "lightIndex"), self.light_index)
+        glUniformMatrix4fv(glGetUniformLocation(self.program_id, "lightModel"), 1, GL_FALSE, self.light_model)
+
+        glDispatchCompute(int(200 / 8), int(160 / 4), 1)
+        glMemoryBarrier(GL_ALL_BARRIER_BITS)
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glUseProgram(self.screen_shader.program)
+        glUniform1i(glGetUniformLocation(self.program_id, "tex"), 1)
+        
         glBindVertexArray(self.vao)
-        glDrawArrays(GL_TRIANGLES, 0, 6)
+        
+        # glDrawArrays(GL_TRIANGLES, 0, 6)
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+        glBindVertexArray(0)
+
 
         end = wpt.time()
         self.render_time = end - start
