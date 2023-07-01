@@ -26,7 +26,7 @@ def main():
     data.load_model(tree)
     data.load_model(box)
 
-    data.set_color(0, 0.5, 0.5, 0.5)
+    data.set_color(0, 0.1, 0.1, 0.1)
     data.set_color(1, 1.0, 0.9, 0.1)
     data.set_color(2, 0.1, 0.1, 0.9)
 

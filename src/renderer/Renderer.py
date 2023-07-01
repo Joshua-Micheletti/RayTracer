@@ -69,6 +69,8 @@ class Renderer:
         self.colors = glGenBuffers(1)
         self.normals = glGenBuffers(1)
 
+
+
         self.camera = Camera.getInstance()
 
         self.render_time = 0
@@ -87,9 +89,20 @@ class Renderer:
         glShaderSource(self.compute_shader, compute_shader_source)
         glCompileShader(self.compute_shader)
 
+        status = None
+        glGetShaderiv(self.compute_shader, GL_COMPILE_STATUS, status)
+        if status == GL_FALSE:
+            # Note that getting the error log is much simpler in Python than in C/C++
+            # and does not require explicit handling of the string buffer
+            strInfoLog = glGetShaderInforLog(self.compute_shader)
+            strShaderType = "compute"
+            
+            print("Compilation failure for " + strShaderType + " shader:\n" + strInfoLog)
+
         self.program_id = glCreateProgram()
         glAttachShader(self.program_id, self.compute_shader)
         glLinkProgram(self.program_id)
+        print(glGetProgramInfoLog(self.program_id))
 
         self.texture = 0
         self.texture = glGenTextures(1, self.texture)
@@ -128,8 +141,7 @@ class Renderer:
         glUniform1i(glGetUniformLocation(self.program_id, "tex"), 1)
         
         glBindVertexArray(self.vao)
-        
-        # glDrawArrays(GL_TRIANGLES, 0, 6)
+
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
         glBindVertexArray(0)
 

@@ -109,7 +109,7 @@ hit_t ray_plane_collision(vec3 ray_origin, vec3 ray_direction, vec3 position, ve
     return(hit);
 }
 
-hit_t calculate_planes(vec3 ray_origin, vec3 ray_direction, bool shadow) {
+hit_t calculate_planes(vec3 ray_origin, vec3 ray_direction, bool shadow, float max_t) {
     hit_t nearest_hit;
     nearest_hit.exists = false;
     nearest_hit.t = 9999999;
@@ -120,7 +120,11 @@ hit_t calculate_planes(vec3 ray_origin, vec3 ray_direction, bool shadow) {
     hit_t hit = ray_plane_collision(ray_origin, ray_direction, position, normal);
 
     if (hit.exists) {
-        if (hit.t < nearest_hit.t) {
+        if (shadow) {
+            if (hit.t <= max_t) {
+                return(hit);
+            }
+        } else if (hit.t < nearest_hit.t) {
             nearest_hit = hit;
         }
     }
@@ -168,7 +172,7 @@ hit_t ray_sphere_collision(vec3 ray_origin, vec3 ray_direction, vec3 sphere_cent
         return(hit);
 }
 
-hit_t calculate_spheres(vec3 ray_origin, vec3 ray_direction, bool shadow) {
+hit_t calculate_spheres(vec3 ray_origin, vec3 ray_direction, bool shadow, float max_t) {
     hit_t nearest_hit;
     nearest_hit.exists = false;
     nearest_hit.t = 999999;
@@ -180,7 +184,11 @@ hit_t calculate_spheres(vec3 ray_origin, vec3 ray_direction, bool shadow) {
     hit_t hit = ray_sphere_collision(ray_origin, ray_direction, center, radius);
 
     if (hit.exists) {
-        if (hit.t < nearest_hit.t) {
+        if (shadow) {
+            if (hit.t <= max_t) {
+                return(hit);
+            }
+        } else if (hit.t < nearest_hit.t) {
             nearest_hit = hit;
         }
     }
@@ -219,7 +227,7 @@ hit_t ray_triangle_collision(vec3 ray_origin, vec3 ray_direction, vec3 v0, vec3 
     return(result);
 }
 
-hit_t calculate_triangles(vec3 ray_origin, vec3 ray_direction, bool shadow) {
+hit_t calculate_triangles(vec3 ray_origin, vec3 ray_direction, bool shadow, float max_t) {
     hit_t nearest_hit;
     nearest_hit.exists = false;
     // initial distance from the hit
@@ -256,9 +264,12 @@ hit_t calculate_triangles(vec3 ray_origin, vec3 ray_direction, bool shadow) {
         hit_t hit = ray_triangle_collision(ray_origin, ray_direction, v0.xyz, v1.xyz, v2.xyz, normal.xyz);
         hit.index = model_index;
 
-
         if (hit.exists) {
-            if (hit.t < nearest_hit.t) {
+            if (shadow) {
+                if (hit.t <= max_t) {
+                    return(hit);
+                }
+            } else if (hit.t < nearest_hit.t) {
                 nearest_hit = hit;
             }
         }
@@ -314,7 +325,7 @@ hit_t ray_box_collision(vec3 ray_origin, vec3 ray_direction, vec3 b0, vec3 b1) {
     return(hit);
 }
 
-hit_t calculate_boxes(vec3 ray_origin, vec3 ray_direction, bool shadow) {
+hit_t calculate_boxes(vec3 ray_origin, vec3 ray_direction, bool shadow, float max_t) {
     hit_t nearest_hit;
     nearest_hit.exists = false;
     nearest_hit.t = 9999999;
@@ -325,7 +336,11 @@ hit_t calculate_boxes(vec3 ray_origin, vec3 ray_direction, bool shadow) {
     hit_t hit = ray_box_collision(ray_origin, ray_direction, b0, b1);
 
     if (hit.exists) {
-        if (hit.t < nearest_hit.t) {
+        if (shadow) {
+            if (hit.t <= max_t) {
+                return(hit);
+            }
+        } else if (hit.t < nearest_hit.t) {
             nearest_hit = hit;
         }
     }
@@ -362,19 +377,51 @@ hit_t find_nearest_hit(hit_t h0, hit_t h1, hit_t h2, hit_t h3) {
 
 hit_t calculate_ray(vec3 ray_origin, vec3 ray_direction, bool shadow) {
 
-    hit_t triangle_hit = calculate_triangles(ray_origin, ray_direction, shadow);
+    hit_t triangle_hit = calculate_triangles(ray_origin, ray_direction, shadow, 10000);
 
-    hit_t sphere_hit = calculate_spheres(ray_origin, ray_direction, shadow);
+    hit_t sphere_hit = calculate_spheres(ray_origin, ray_direction, shadow, 10000);
 
-    hit_t plane_hit = calculate_planes(ray_origin, ray_direction, shadow);
+    hit_t plane_hit = calculate_planes(ray_origin, ray_direction, shadow, 10000);
 
-    hit_t box_hit = calculate_boxes(ray_origin, ray_direction, shadow);
+    hit_t box_hit = calculate_boxes(ray_origin, ray_direction, shadow, 10000);
 
 
     hit_t nearest_hit = find_nearest_hit(triangle_hit, sphere_hit, plane_hit, box_hit);
 
 
     return(nearest_hit);
+}
+
+hit_t calculate_shadow_ray(vec3 ray_origin, vec3 ray_direction, vec3 light_position) {
+    float t_to_light = (light_position.x - ray_origin.x) / ray_direction.x;
+
+    hit_t triangle_hit = calculate_triangles(ray_origin, ray_direction, true, t_to_light);
+
+    if (triangle_hit.exists) {
+        return(triangle_hit);
+    }
+
+    hit_t sphere_hit = calculate_spheres(ray_origin, ray_direction, true, t_to_light);
+
+    if (sphere_hit.exists) {
+        return(sphere_hit);
+    }
+
+    hit_t plane_hit = calculate_planes(ray_origin, ray_direction, true, t_to_light);
+
+    if (plane_hit.exists) {
+        return(plane_hit);
+    }
+
+    hit_t box_hit = calculate_boxes(ray_origin, ray_direction, true, t_to_light);
+
+    if (box_hit.exists) {
+        return(box_hit);
+    }
+
+    hit_t none;
+    none.exists = false;
+    return(none);
 }
 
 
@@ -392,13 +439,12 @@ void main() {
     // color vector
     vec3 void_color = vec3(0.1, 0.4, 1.0);
     vec3 color = vec3(0.1, 0.4, 1.0);
-    vec3 sphere_color = vec3(1.0, 0.2, 0.1);
+    vec3 sphere_color = vec3(0.5, 0.5, 0.5);
     vec3 plane_color = vec3(0.1, 1.0, 0.4);
     vec3 box_color = vec3(1.0, 0.1, 1.0);
     
     vec3 origin = eye;
     vec3 direction = camera_ray_direction(position.xy, inverseViewProjection);
-
 
     hit_t primary_hit = calculate_ray(origin, direction, false);
 
@@ -426,10 +472,11 @@ void main() {
     hit_t reflection_hit = calculate_ray(origin, direction, false);
 
     if (reflection_hit.exists) {
+        vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
         origin = reflection_hit.pos + reflection_hit.normal * t;
-        direction = origin - vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
+        direction = normalize(light_position - origin);
 
-        hit_t reflection_shadow_hit = calculate_ray(origin, direction, true);
+        hit_t reflection_shadow_hit = calculate_shadow_ray(origin, direction, light_position);
 
         if (reflection_shadow_hit.exists) {
             if (reflection_hit.primitive == TRIANGLE) {
@@ -463,16 +510,14 @@ void main() {
     origin = vec3(primary_hit.pos + primary_hit.normal * t);
     direction = normalize(light_position - origin);
     
-    hit_t shadow_hit = calculate_ray(origin, direction, true);
+    hit_t shadow_hit = calculate_shadow_ray(origin, direction, light_position);
 
     float t_to_light = (light_position.x - origin.x) / direction.x;
 
-    if (shadow_hit.exists && shadow_hit.t <= t_to_light) {
+    if (shadow_hit.exists) {
         color *= 0.5;
     }
-	
-    // imageStore(imgOutput, texelCoord, vec4(position, 0.0, 1.0));
+
+
     imageStore(imgOutput, texelCoord, vec4(color, 1.0));
-    // imageStore(imgOutput, texelCoord, vec4(lightModel[3][0], lightModel[3][1], lightModel[3][2], 1.0));
-    // imageStore(imgOutput, texelCoord, vec4(lightIndex, lightIndex / 2, lightIndex / 4, 1.0));
 }
