@@ -35,6 +35,7 @@ def main():
     data.load_plane(0, 0, 0, 0, 1, 0, 0, 1, 0)
 
     data.load_box(-2, 2, 2, -1, 3, 3, 1.0, 0.0, 1.0)
+    # data.load_box(-14, 0, -13, 13, 25, 7, 1.0, 0.0, 0.0)
 
     dt = 0
 
@@ -50,9 +51,9 @@ def main():
 
         end = wpt.time()
         dt = end - start
-        print(f"Total: {dt * 1000}")
-        print(f"FPS: {1 / (dt)}")
-        print(f"Render: {renderer.render_time * 1000}")
+        # print(f"Total: {dt * 1000}")
+        # print(f"FPS: {1 / (dt)}")
+        # print(f"Render: {renderer.render_time * 1000}")
         
     glfw.terminate()
     

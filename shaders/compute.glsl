@@ -60,6 +60,11 @@ layout (binding = 11) uniform box_color
     float[100] boxes_colors;
 };
 
+layout (binding = 12) uniform bounding_box
+{
+    float[100] bounding_boxes;
+};
+
 
 uniform mat4 inverseViewProjection;
 uniform vec3 eye;
@@ -145,7 +150,7 @@ hit_t calculate_planes(vec3 ray_origin, vec3 ray_direction, bool shadow, float m
     nearest_hit.exists = false;
     nearest_hit.t = 9999999;
 
-    for (int i = 0; i < planes.length(); i += 6) {
+    for (int i = 0; i <= planes.length(); i += 6) {
         vec3 position = vec3(planes[i], planes[i + 1], planes[i + 2]);
         vec3 normal = vec3(planes[i + 3], planes[i + 4], planes[i + 5]);
 
@@ -215,7 +220,7 @@ hit_t calculate_spheres(vec3 ray_origin, vec3 ray_direction, bool shadow, float 
 
     // float radius = 0.5;
 
-    for (int i = 0; i < spheres.length(); i += 4) {
+    for (int i = 0; i <= spheres.length(); i += 4) {
         vec3 center = vec3(spheres[i], spheres[i + 1], spheres[i + 2]);
         float radius = spheres[i + 3];
 
@@ -370,7 +375,7 @@ hit_t calculate_boxes(vec3 ray_origin, vec3 ray_direction, bool shadow, float ma
     nearest_hit.exists = false;
     nearest_hit.t = 9999999;
 
-    for (int i = 0; i < boxes.length(); i += 6) {
+    for (int i = 0; i <= boxes.length(); i += 6) {
         vec3 b0 = vec3(boxes[i], boxes[i + 1], boxes[i + 2]);
         vec3 b1 = vec3(boxes[i + 3], boxes[i + 4], boxes[i + 5]);
 
@@ -494,93 +499,94 @@ void main() {
     // counter of vertices inside the model
     float vertex_index = 0;
 
-    // for (int i = 0; i < vertices.length(); i += 3, vertex_index += 3) {
-    //     if (vertex_index >= indices[model_index]) {
-    //         vertex_index = 0;
-    //         model_index += 1;
-    //     }
+    // hit_t primary_hit = calculate_ray(origin, direction, false);
+    hit_t primary_hit;
+    primary_hit.exists = false;
 
-    //     vec4 v = vec4(vertices[i], vertices[i + 1], vertices[i + 2], 1.0);
-    //     v = model_mats[model_index] * v;
-        
-    //     swaps[i] = v.x;
-    //     swaps[i + 1] = v.y;
-    //     swaps[i + 2] = v.z;
-    // }
+    for (int i = 0; i < 18; i += 6) {
+        vec3 b0 = vec3(bounding_boxes[i], bounding_boxes[i + 1], bounding_boxes[i + 2]);
+        vec3 b1 = vec3(bounding_boxes[i + 3], bounding_boxes[i + 4], bounding_boxes[i + 5]);
+        // vec3 b0 = vec3(-1, -1, -1);
+        // vec3 b1 = vec3(1, 1, 1);
+        // vec3 b0 = vec3(bounding_boxes[12], bounding_boxes[13], bounding_boxes[14]);
+        // vec3 b1 = vec3(bounding_boxes[15], bounding_boxes[16], bounding_boxes[17]);
 
-    hit_t primary_hit = calculate_ray(origin, direction, false);
+        primary_hit = ray_box_collision(origin, direction, b0, b1);
+    }
 
     if (!primary_hit.exists) {
         imageStore(imgOutput, texelCoord, vec4(color, 1.0));
         return;
     }
 
-    if (primary_hit.primitive == TRIANGLE) {
-        color = vec3(colors[primary_hit.index * 3], colors[primary_hit.index * 3 + 1], colors[primary_hit.index * 3 + 2]);
-    } else if (primary_hit.primitive == SPHERE) {
-        color = vec3(sphere_colors[primary_hit.index * 3], sphere_colors[primary_hit.index * 3 + 1], sphere_colors[primary_hit.index * 3 + 2]);
-    } else if (primary_hit.primitive == PLANE) {
-        color = vec3(plane_colors[primary_hit.index * 3], plane_colors[primary_hit.index * 3 + 1], plane_colors[primary_hit.index * 3 + 2]);
-    } else {
-        color = vec3(boxes_colors[primary_hit.index * 3], boxes_colors[primary_hit.index * 3 + 1], boxes_colors[primary_hit.index * 3 + 2]);
-    }
+    color = vec3(1.0, 0.0, 0.0);
+
+    // if (primary_hit.primitive == TRIANGLE) {
+    //     color = vec3(colors[primary_hit.index * 3], colors[primary_hit.index * 3 + 1], colors[primary_hit.index * 3 + 2]);
+    // } else if (primary_hit.primitive == SPHERE) {
+    //     color = vec3(sphere_colors[primary_hit.index * 3], sphere_colors[primary_hit.index * 3 + 1], sphere_colors[primary_hit.index * 3 + 2]);
+    // } else if (primary_hit.primitive == PLANE) {
+    //     color = vec3(plane_colors[primary_hit.index * 3], plane_colors[primary_hit.index * 3 + 1], plane_colors[primary_hit.index * 3 + 2]);
+    // } else {
+    //     color = vec3(boxes_colors[primary_hit.index * 3], boxes_colors[primary_hit.index * 3 + 1], boxes_colors[primary_hit.index * 3 + 2]);
+    // }
 
     float t = 0.0001;
 
     // REFLECTION PASS
-    origin = primary_hit.pos + primary_hit.normal * t;
-    direction = normalize(direction - 2 * primary_hit.normal * dot(direction, primary_hit.normal));
+    // origin = primary_hit.pos + primary_hit.normal * t;
+    // direction = normalize(direction - 2 * primary_hit.normal * dot(direction, primary_hit.normal));
 
-    hit_t reflection_hit = calculate_ray(origin, direction, false);
+    // hit_t reflection_hit = calculate_ray(origin, direction, false);
 
-    if (reflection_hit.exists) {
-        vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
-        origin = reflection_hit.pos + reflection_hit.normal * t;
-        direction = normalize(light_position - origin);
+    // if (reflection_hit.exists) {
+    //     vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
+    //     origin = reflection_hit.pos + reflection_hit.normal * t;
+    //     direction = normalize(light_position - origin);
 
-        hit_t reflection_shadow_hit = calculate_shadow_ray(origin, direction, light_position);
+    //     hit_t reflection_shadow_hit = calculate_shadow_ray(origin, direction, light_position);
 
-        if (reflection_shadow_hit.exists) {
-            if (reflection_hit.primitive == TRIANGLE) {
-                color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]) * 0.5;
-            } else if (reflection_hit.primitive == SPHERE) {
-                color += sphere_color * 0.5;
-            } else if (reflection_hit.primitive == PLANE) {
-                color += plane_color * 0.5;
-            } else {
-                color += box_color * 0.5;
-            }
+    //     if (reflection_shadow_hit.exists) {
+    //         if (reflection_hit.primitive == TRIANGLE) {
+    //             color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]) * 0.5;
+    //         } else if (reflection_hit.primitive == SPHERE) {
+    //             color += sphere_color * 0.5;
+    //         } else if (reflection_hit.primitive == PLANE) {
+    //             color += plane_color * 0.5;
+    //         } else {
+    //             color += box_color * 0.5;
+    //         }
 
-        } else {
-            if (reflection_hit.primitive == TRIANGLE) {
-                color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]);
-            } else if (reflection_hit.primitive == SPHERE) {
-                color += sphere_color;
-            } else if (reflection_hit.primitive == PLANE) {
-                color += plane_color;
-            } else {
-                color += box_color;
-            }
-        }  
-    } else {
-        color += void_color * 0.5;
-    }
+    //     } else {
+    //         if (reflection_hit.primitive == TRIANGLE) {
+    //             color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]);
+    //         } else if (reflection_hit.primitive == SPHERE) {
+    //             color += sphere_color;
+    //         } else if (reflection_hit.primitive == PLANE) {
+    //             color += plane_color;
+    //         } else {
+    //             color += box_color;
+    //         }
+    //     }  
+    // } else {
+    //     color += void_color * 0.5;
+    // }
 
-    // SHADOW PASS
-    vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
+    // // SHADOW PASS
+    // vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
 
-    origin = vec3(primary_hit.pos + primary_hit.normal * t);
-    direction = normalize(light_position - origin);
+    // origin = vec3(primary_hit.pos + primary_hit.normal * t);
+    // direction = normalize(light_position - origin);
     
-    hit_t shadow_hit = calculate_shadow_ray(origin, direction, light_position);
+    // hit_t shadow_hit = calculate_shadow_ray(origin, direction, light_position);
 
-    float t_to_light = (light_position.x - origin.x) / direction.x;
+    // float t_to_light = (light_position.x - origin.x) / direction.x;
 
-    if (shadow_hit.exists) {
-        color *= 0.5;
-    }
+    // if (shadow_hit.exists) {
+    //     color *= 0.5;
+    // }
 
 
     imageStore(imgOutput, texelCoord, vec4(color, 1.0));
-    // imageStore(imgOutput, texelCoord, vec4(colors[0], colors[1], colors[2], 1.0));
+    // imageStore(imgOutput, texelCoord, vec4(bounding_boxes[15], bounding_boxes[16], bounding_boxes[17], 1.0));
 }

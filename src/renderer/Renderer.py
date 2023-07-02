@@ -75,6 +75,7 @@ class Renderer:
         self.boxes = glGenBuffers(1)
         self.boxes_colors = glGenBuffers(1)
         self.swap = glGenBuffers(1)
+        self.bounding_boxes = glGenBuffers(1)
 
 
         self.camera = Camera.getInstance()
@@ -243,6 +244,16 @@ class Renderer:
         glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
         glBindBufferBase(GL_UNIFORM_BUFFER, 11, self.boxes_colors)
         glBindBuffer(GL_UNIFORM_BUFFER, 0)
+
+    def update_bounding_boxes(self, bounding_boxes):
+        # print(bounding_boxes)
+        data = (GLfloat * len(bounding_boxes))(*bounding_boxes)
+
+        glBindBuffer(GL_UNIFORM_BUFFER, self.bounding_boxes)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 12, self.bounding_boxes)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
+
 
 
 

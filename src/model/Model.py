@@ -16,6 +16,9 @@ class Model:
         self.scale_y = 1
         self.scale_z = 1
 
+        self.bounding_min = np.array([0.0, 0.0, 0.0])
+        self.bounding_max = np.array([0.0, 0.0, 0.0])
+
         self.model_matrix = Matrix44.identity()
         self.translation_matrix = Matrix44.identity()
         self.scale_matrix = Matrix44.identity()
@@ -52,6 +55,46 @@ class Model:
             self.normals.append(normal[0])
             self.normals.append(normal[1])
             self.normals.append(normal[2])
+
+        for i in range(0, len(self.vertices), 3):
+            x = float(self.vertices[i])
+            y = float(self.vertices[i + 1])
+            z = float(self.vertices[i + 2])
+
+            if i == 0:
+                self.bounding_min[0] = x
+                self.bounding_min[1] = y
+                self.bounding_min[2] = z
+                self.bounding_max[0] = x
+                self.bounding_max[1] = y
+                self.bounding_max[2] = z
+
+            if x < self.bounding_min[0]:
+                self.bounding_min[0] = x
+
+            if x > self.bounding_max[0]:
+                self.bounding_max[0] = x
+
+            if y < self.bounding_min[1]:
+                self.bounding_min[1] = y
+
+            if y > self.bounding_max[1]:
+                self.bounding_max[1] = y
+
+            if z < self.bounding_min[2]:
+                self.bounding_min[2] = z
+
+            if z > self.bounding_max[2]:
+                self.bounding_max[2] = z
+
+            # print(x, y, z)
+            # print(self.bounding_min)
+            # print(self.bounding_max)
+
+        # print(self.vertices)
+        # print(self.bounding_min)
+        # print(self.bounding_max)
+
 
 
     def calculate_model_matrix(self):

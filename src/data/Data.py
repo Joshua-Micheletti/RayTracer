@@ -35,6 +35,8 @@ class Data:
         self.models = np.empty([0])
         self.normals = np.empty([0])
 
+        self.bounding_boxes = np.empty([0])
+
         self.to_update = True
 
 
@@ -60,6 +62,9 @@ class Data:
         self.load_vertices(model.vertices)
         self.load_model_mats(model.model_matrix)
         self.load_normals(model.normals)
+        self.load_bounding_box(model.bounding_min, model.bounding_max)
+        print(model.bounding_min)
+        print(model.bounding_max)
 
     def load_sphere(self, center_x, center_y, center_z, radius, color_r, color_g, color_b):
         self.spheres = np.append(self.spheres, np.array([center_x, center_y, center_z]))
@@ -98,6 +103,12 @@ class Data:
     def load_normals(self, normals):
         self.normals = np.append(self.normals, normals)
         Renderer.getInstance().update_normals(self.normals)
+
+    def load_bounding_box(self, b0, b1):
+        self.bounding_boxes = np.append(self.bounding_boxes, b0)
+        self.bounding_boxes = np.append(self.bounding_boxes, b1)
+
+        Renderer.getInstance().update_bounding_boxes(self.bounding_boxes)
 
     
 
