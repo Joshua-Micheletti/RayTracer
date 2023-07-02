@@ -92,7 +92,7 @@ class Data:
         Renderer.getInstance().update_model_mats(self.model_matrixes)
 
     def set_color(self, index, r, g, b):
-        self.colors = np.append(self.colors, [r, g, b])
+        self.colors = np.append(self.colors, np.array([r, g, b]))
         Renderer.getInstance().update_colors(self.colors)
 
     def load_normals(self, normals):

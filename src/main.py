@@ -50,9 +50,9 @@ def main():
 
         end = wpt.time()
         dt = end - start
-        # print(f"Total: {dt * 1000}")
-        # print(f"FPS: {1 / (dt)}")
-        # print(f"Render: {renderer.render_time * 1000}")
+        print(f"Total: {dt * 1000}")
+        print(f"FPS: {1 / (dt)}")
+        print(f"Render: {renderer.render_time * 1000}")
         
     glfw.terminate()
     

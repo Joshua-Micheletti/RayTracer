@@ -74,7 +74,7 @@ class Renderer:
         self.plane_colors = glGenBuffers(1)
         self.boxes = glGenBuffers(1)
         self.boxes_colors = glGenBuffers(1)
-
+        self.swap = glGenBuffers(1)
 
 
         self.camera = Camera.getInstance()
@@ -124,7 +124,7 @@ class Renderer:
 
         self.screen_shader = Shader("../shaders/screen_vertex.glsl", "../shaders/screen_fragment.glsl")
 
-    
+
     def render(self):
         start = wpt.time()
 
@@ -160,89 +160,89 @@ class Renderer:
         data = (GLfloat * len(vertices))(*vertices)
 
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.vertices)
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, self.vertices)
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
 
     def update_indices(self, indices):
         data = (GLfloat * len(indices))(*indices)
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.indices)
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, self.indices)
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+        glBindBuffer(GL_UNIFORM_BUFFER, self.indices)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 3, self.indices)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
 
     def update_model_mats(self, model_mats):
         data = (GLfloat * len(model_mats))(*model_mats)
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.model_mats)
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, self.model_mats)
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+        glBindBuffer(GL_UNIFORM_BUFFER, self.model_mats)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 2, self.model_mats)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
         
     def update_colors(self, colors):
         data = (GLfloat * len(colors))(*colors)
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.colors)
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, self.colors)
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+        glBindBuffer(GL_UNIFORM_BUFFER, self.colors)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 4, self.colors)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
 
     def update_normals(self, normals):
         data = (GLfloat * len(normals))(*normals)
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.normals)
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, self.normals)
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+        glBindBuffer(GL_UNIFORM_BUFFER, self.normals)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 5, self.normals)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
 
     def update_spheres(self, spheres):
         data = (GLfloat * len(spheres))(*spheres)
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.spheres)
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, self.spheres)
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+        glBindBuffer(GL_UNIFORM_BUFFER, self.spheres)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 6, self.spheres)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
 
     def update_sphere_colors(self, colors):
         data = (GLfloat * len(colors))(*colors)
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.sphere_colors)
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, self.sphere_colors)
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+        glBindBuffer(GL_UNIFORM_BUFFER, self.sphere_colors)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 7, self.sphere_colors)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
 
     def update_planes(self, planes):
         data = (GLfloat * len(planes))(*planes)
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.planes)
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, self.planes)
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+        glBindBuffer(GL_UNIFORM_BUFFER, self.planes)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 8, self.planes)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
 
     def update_plane_colors(self, colors):
         data = (GLfloat * len(colors))(*colors)
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.plane_colors)
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, self.plane_colors)
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+        glBindBuffer(GL_UNIFORM_BUFFER, self.plane_colors)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 9, self.plane_colors)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
 
     def update_boxes(self, boxes):
         data = (GLfloat * len(boxes))(*boxes)
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.boxes)
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, self.boxes)
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+        glBindBuffer(GL_UNIFORM_BUFFER, self.boxes)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 10, self.boxes)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
 
     def update_boxes_colors(self, colors):
         data = (GLfloat * len(colors))(*colors)
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.boxes_colors)
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, self.boxes_colors)
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+        glBindBuffer(GL_UNIFORM_BUFFER, self.boxes_colors)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 11, self.boxes_colors)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
 
 
 

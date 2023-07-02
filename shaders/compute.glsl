@@ -10,54 +10,54 @@ layout (std430, binding = 1) buffer vertex
     float[] vertices;
 };
 
-layout (std430, binding = 2) buffer model
+layout (std140, binding = 2) uniform model
 {
-    mat4[] model_mats;
+    mat4[100] model_mats;
 };
 
-layout (std430, binding = 3) buffer index
+layout (binding = 3) uniform index
 {
-    float[] indices;
+    float[100] indices;
 };
 
-layout (std430, binding = 4) buffer color
+layout (binding = 4) uniform color
 {
-    float[] colors;
+    float[100] colors;
 };
 
-layout (std430, binding = 5) buffer normal
+layout (binding = 5) uniform normal
 {
-    float[] normals;
+    float[100] normals;
 };
 
-layout (std430, binding = 6) buffer sphere
+layout (binding = 6) uniform sphere
 {
-    float[] spheres;
+    float[100] spheres;
 };
 
-layout (std430, binding = 7) buffer sphere_color
+layout (binding = 7) uniform sphere_color
 {
-    float[] sphere_colors;
+    float[100] sphere_colors;
 };
 
-layout (std430, binding = 8) buffer plane
+layout (binding = 8) uniform plane
 {
-    float[] planes;
+    float[100] planes;
 };
 
-layout (std430, binding = 9) buffer plane_color
+layout (binding = 9) uniform plane_color
 {
-    float[] plane_colors;
+    float[100] plane_colors;
 };
 
-layout (std430, binding = 10) buffer box
+layout (binding = 10) uniform box
 {
-    float[] boxes;
+    float[100] boxes;
 };
 
-layout (std430, binding = 11) buffer box_color
+layout (binding = 11) uniform box_color
 {
-    float[] boxes_colors;
+    float[100] boxes_colors;
 };
 
 
@@ -489,6 +489,25 @@ void main() {
     vec3 origin = eye;
     vec3 direction = camera_ray_direction(position.xy, inverseViewProjection);
 
+    // index variable to keep track of what model we're rendering
+    int model_index = 0;
+    // counter of vertices inside the model
+    float vertex_index = 0;
+
+    // for (int i = 0; i < vertices.length(); i += 3, vertex_index += 3) {
+    //     if (vertex_index >= indices[model_index]) {
+    //         vertex_index = 0;
+    //         model_index += 1;
+    //     }
+
+    //     vec4 v = vec4(vertices[i], vertices[i + 1], vertices[i + 2], 1.0);
+    //     v = model_mats[model_index] * v;
+        
+    //     swaps[i] = v.x;
+    //     swaps[i + 1] = v.y;
+    //     swaps[i + 2] = v.z;
+    // }
+
     hit_t primary_hit = calculate_ray(origin, direction, false);
 
     if (!primary_hit.exists) {
@@ -563,4 +582,5 @@ void main() {
 
 
     imageStore(imgOutput, texelCoord, vec4(color, 1.0));
+    // imageStore(imgOutput, texelCoord, vec4(colors[0], colors[1], colors[2], 1.0));
 }
