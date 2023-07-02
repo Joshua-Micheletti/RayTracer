@@ -30,6 +30,37 @@ layout (std430, binding = 5) buffer normal
     float[] normals;
 };
 
+layout (std430, binding = 6) buffer sphere
+{
+    float[] spheres;
+};
+
+layout (std430, binding = 7) buffer sphere_color
+{
+    float[] sphere_colors;
+};
+
+layout (std430, binding = 8) buffer plane
+{
+    float[] planes;
+};
+
+layout (std430, binding = 9) buffer plane_color
+{
+    float[] plane_colors;
+};
+
+layout (std430, binding = 10) buffer box
+{
+    float[] boxes;
+};
+
+layout (std430, binding = 11) buffer box_color
+{
+    float[] boxes_colors;
+};
+
+
 uniform mat4 inverseViewProjection;
 uniform vec3 eye;
 uniform float lightIndex;
@@ -114,18 +145,21 @@ hit_t calculate_planes(vec3 ray_origin, vec3 ray_direction, bool shadow, float m
     nearest_hit.exists = false;
     nearest_hit.t = 9999999;
 
-    vec3 position = vec3(0, 0, 0);
-    vec3 normal = vec3(0, 1, 0);
+    for (int i = 0; i < planes.length(); i += 6) {
+        vec3 position = vec3(planes[i], planes[i + 1], planes[i + 2]);
+        vec3 normal = vec3(planes[i + 3], planes[i + 4], planes[i + 5]);
 
-    hit_t hit = ray_plane_collision(ray_origin, ray_direction, position, normal);
+        hit_t hit = ray_plane_collision(ray_origin, ray_direction, position, normal);
+        hit.index = int(i / 6);
 
-    if (hit.exists) {
-        if (shadow) {
-            if (hit.t <= max_t) {
-                return(hit);
+        if (hit.exists) {
+            if (shadow) {
+                if (hit.t <= max_t) {
+                    return(hit);
+                }
+            } else if (hit.t < nearest_hit.t) {
+                nearest_hit = hit;
             }
-        } else if (hit.t < nearest_hit.t) {
-            nearest_hit = hit;
         }
     }
 
@@ -177,19 +211,25 @@ hit_t calculate_spheres(vec3 ray_origin, vec3 ray_direction, bool shadow, float 
     nearest_hit.exists = false;
     nearest_hit.t = 999999;
 
-    vec3 center = vec3(-1.0, 1.0, -1.0);
+    // vec3 center = vec3(-1.0, 1.0, -1.0);
 
-    float radius = 0.5;
+    // float radius = 0.5;
 
-    hit_t hit = ray_sphere_collision(ray_origin, ray_direction, center, radius);
+    for (int i = 0; i < spheres.length(); i += 4) {
+        vec3 center = vec3(spheres[i], spheres[i + 1], spheres[i + 2]);
+        float radius = spheres[i + 3];
 
-    if (hit.exists) {
-        if (shadow) {
-            if (hit.t <= max_t) {
-                return(hit);
+        hit_t hit = ray_sphere_collision(ray_origin, ray_direction, center, radius);
+        hit.index = int(i / 4);
+
+        if (hit.exists) {
+            if (shadow) {
+                if (hit.t <= max_t) {
+                    return(hit);
+                }
+            } else if (hit.t < nearest_hit.t) {
+                nearest_hit = hit;
             }
-        } else if (hit.t < nearest_hit.t) {
-            nearest_hit = hit;
         }
     }
 
@@ -330,18 +370,21 @@ hit_t calculate_boxes(vec3 ray_origin, vec3 ray_direction, bool shadow, float ma
     nearest_hit.exists = false;
     nearest_hit.t = 9999999;
 
-    vec3 b0 = vec3(-2, 2, 2);
-    vec3 b1 = vec3(-1, 3, 3);
+    for (int i = 0; i < boxes.length(); i += 6) {
+        vec3 b0 = vec3(boxes[i], boxes[i + 1], boxes[i + 2]);
+        vec3 b1 = vec3(boxes[i + 3], boxes[i + 4], boxes[i + 5]);
 
-    hit_t hit = ray_box_collision(ray_origin, ray_direction, b0, b1);
+        hit_t hit = ray_box_collision(ray_origin, ray_direction, b0, b1);
+        hit.index = int(i / 6);
 
-    if (hit.exists) {
-        if (shadow) {
-            if (hit.t <= max_t) {
-                return(hit);
+        if (hit.exists) {
+            if (shadow) {
+                if (hit.t <= max_t) {
+                    return(hit);
+                }
+            } else if (hit.t < nearest_hit.t) {
+                nearest_hit = hit;
             }
-        } else if (hit.t < nearest_hit.t) {
-            nearest_hit = hit;
         }
     }
 
@@ -456,11 +499,11 @@ void main() {
     if (primary_hit.primitive == TRIANGLE) {
         color = vec3(colors[primary_hit.index * 3], colors[primary_hit.index * 3 + 1], colors[primary_hit.index * 3 + 2]);
     } else if (primary_hit.primitive == SPHERE) {
-        color = sphere_color;
+        color = vec3(sphere_colors[primary_hit.index * 3], sphere_colors[primary_hit.index * 3 + 1], sphere_colors[primary_hit.index * 3 + 2]);
     } else if (primary_hit.primitive == PLANE) {
-        color = plane_color;
+        color = vec3(plane_colors[primary_hit.index * 3], plane_colors[primary_hit.index * 3 + 1], plane_colors[primary_hit.index * 3 + 2]);
     } else {
-        color = box_color;
+        color = vec3(boxes_colors[primary_hit.index * 3], boxes_colors[primary_hit.index * 3 + 1], boxes_colors[primary_hit.index * 3 + 2]);
     }
 
     float t = 0.0001;

@@ -39,7 +39,7 @@ class Renderer:
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         # glEnable(GL_DEPTH_TEST)
 
-        self.shader = Shader("../shaders/vertex.glsl", "../shaders/fragment.glsl")
+        # self.shader = Shader("../shaders/vertex.glsl", "../shaders/fragment.glsl")
 
         vertices = [
             -1.0,  1.0, 0.0, 0.0, 1.0,
@@ -68,6 +68,12 @@ class Renderer:
         self.indices = glGenBuffers(1)
         self.colors = glGenBuffers(1)
         self.normals = glGenBuffers(1)
+        self.spheres = glGenBuffers(1)
+        self.sphere_colors = glGenBuffers(1)
+        self.planes = glGenBuffers(1)
+        self.plane_colors = glGenBuffers(1)
+        self.boxes = glGenBuffers(1)
+        self.boxes_colors = glGenBuffers(1)
 
 
 
@@ -189,6 +195,55 @@ class Renderer:
         glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, self.normals)
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+
+    def update_spheres(self, spheres):
+        data = (GLfloat * len(spheres))(*spheres)
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.spheres)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, self.spheres)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+
+    def update_sphere_colors(self, colors):
+        data = (GLfloat * len(colors))(*colors)
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.sphere_colors)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, self.sphere_colors)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+
+    def update_planes(self, planes):
+        data = (GLfloat * len(planes))(*planes)
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.planes)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, self.planes)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+
+    def update_plane_colors(self, colors):
+        data = (GLfloat * len(colors))(*colors)
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.plane_colors)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, self.plane_colors)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+
+    def update_boxes(self, boxes):
+        data = (GLfloat * len(boxes))(*boxes)
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.boxes)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, self.boxes)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+
+    def update_boxes_colors(self, colors):
+        data = (GLfloat * len(colors))(*colors)
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.boxes_colors)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_DYNAMIC_COPY)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, self.boxes_colors)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
+
 
 
 def normalize(vector):

@@ -30,6 +30,12 @@ def main():
     data.set_color(1, 1.0, 0.9, 0.1)
     data.set_color(2, 0.1, 0.1, 0.9)
 
+    data.load_sphere(-1, 1, -1, 0.5, 1.0, 0.0, 0.0)
+
+    data.load_plane(0, 0, 0, 0, 1, 0, 0, 1, 0)
+
+    data.load_box(-2, 2, 2, -1, 3, 3, 1.0, 0.0, 1.0)
+
     dt = 0
 
     while not glfw.window_should_close(window.window):
