@@ -272,57 +272,6 @@ hit_t ray_triangle_collision(vec3 ray_origin, vec3 ray_direction, vec3 v0, vec3 
     return(result);
 }
 
-hit_t calculate_triangles(vec3 ray_origin, vec3 ray_direction, bool shadow, float max_t) {
-    hit_t nearest_hit;
-    nearest_hit.exists = false;
-    // initial distance from the hit
-    nearest_hit.t = 9999999;
-
-    // index variable to keep track of what model we're rendering
-    int model_index = 0;
-    // counter of vertices inside the model
-    float vertex_index = 0;
-    int normal_index = 0;
-
-    for (int i = 0; i <= vertices.length(); i += 9, vertex_index += 9, normal_index += 3) {
-
-        if (vertex_index >= indices[model_index]) {
-            vertex_index = 0;
-            model_index += 1;
-        }
-
-        if (shadow) {
-            if (model_index == lightIndex) {
-                break;
-            }
-        }
-
-        vec4 v0 = vec4(vertices[i    ], vertices[i + 1], vertices[i + 2], 1.0);
-        vec4 v1 = vec4(vertices[i + 3], vertices[i + 4], vertices[i + 5], 1.0);
-        vec4 v2 = vec4(vertices[i + 6], vertices[i + 7], vertices[i + 8], 1.0);
-        vec4 normal = vec4(normals[normal_index], normals[normal_index + 1], normals[normal_index + 2], 0.0);
-
-        v0 = model_mats[model_index] * v0;
-        v1 = model_mats[model_index] * v1;
-        v2 = model_mats[model_index] * v2;
-
-        hit_t hit = ray_triangle_collision(ray_origin, ray_direction, v0.xyz, v1.xyz, v2.xyz, normal.xyz);
-        hit.index = model_index;
-
-        if (hit.exists) {
-            if (shadow) {
-                if (hit.t <= max_t) {
-                    return(hit);
-                }
-            } else if (hit.t < nearest_hit.t) {
-                nearest_hit = hit;
-            }
-        }
-    }
-
-    return(nearest_hit);
-}
-
 hit_t ray_box_collision(vec3 ray_origin, vec3 ray_direction, vec3 b0, vec3 b1) {
     hit_t hit;
     hit.exists = false;
@@ -389,6 +338,77 @@ hit_t calculate_boxes(vec3 ray_origin, vec3 ray_direction, bool shadow, float ma
                 }
             } else if (hit.t < nearest_hit.t) {
                 nearest_hit = hit;
+            }
+        }
+    }
+
+    return(nearest_hit);
+}
+
+
+hit_t calculate_triangles(vec3 ray_origin, vec3 ray_direction, bool shadow, float max_t) {
+    hit_t nearest_hit;
+    nearest_hit.exists = false;
+    // initial distance from the hit
+    nearest_hit.t = 9999999;
+
+    // index variable to keep track of what model we're rendering
+    int model_index = 0;
+    // counter of vertices inside the model
+    float vertex_index = 0;
+    int normal_index = 0;
+    bool skip = false;
+
+    for (int i = 0; i <= vertices.length(); i += 9, vertex_index += 9, normal_index += 3) {
+
+        if (vertex_index >= indices[model_index]) {
+            vertex_index = 0;
+            model_index += 1;
+            skip = false;
+        }
+
+        if (shadow) {
+            if (model_index == lightIndex) {
+                break;
+            }
+        }
+
+        if (vertex_index == 0) {
+            vec4 b0 = vec4(bounding_boxes[model_index * 6], bounding_boxes[model_index * 6 + 1], bounding_boxes[model_index * 6 + 2], 1.0);
+            vec4 b1 = vec4(bounding_boxes[model_index * 6 + 3], bounding_boxes[model_index * 6 + 4], bounding_boxes[model_index * 6 + 5], 1.0);
+
+            b0 = model_mats[model_index] * b0;
+            b1 = model_mats[model_index] * b1;
+
+            hit_t aabb_hit = ray_box_collision(ray_origin, ray_direction, b0.xyz, b1.xyz);
+
+            if (!aabb_hit.exists) {
+                skip = true;
+            }
+        }
+
+        if (!skip) {
+
+            vec4 v0 = vec4(vertices[i    ], vertices[i + 1], vertices[i + 2], 1.0);
+            vec4 v1 = vec4(vertices[i + 3], vertices[i + 4], vertices[i + 5], 1.0);
+            vec4 v2 = vec4(vertices[i + 6], vertices[i + 7], vertices[i + 8], 1.0);
+            vec4 normal = vec4(normals[normal_index], normals[normal_index + 1], normals[normal_index + 2], 0.0);
+
+            v0 = model_mats[model_index] * v0;
+            v1 = model_mats[model_index] * v1;
+            v2 = model_mats[model_index] * v2;
+
+            hit_t hit = ray_triangle_collision(ray_origin, ray_direction, v0.xyz, v1.xyz, v2.xyz, normal.xyz);
+            hit.index = model_index;
+
+            if (hit.exists) {
+                if (shadow) {
+                    if (hit.t <= max_t) {
+                        return(hit);
+                    }
+                } else if (hit.t < nearest_hit.t) {
+                    nearest_hit = hit;
+                }
             }
         }
     }
@@ -499,92 +519,150 @@ void main() {
     // counter of vertices inside the model
     float vertex_index = 0;
 
-    // hit_t primary_hit = calculate_ray(origin, direction, false);
-    hit_t primary_hit;
-    primary_hit.exists = false;
+    hit_t primary_hit = calculate_ray(origin, direction, false);
+    // hit_t primary_hit;
+    // primary_hit.exists = false;
 
-    for (int i = 0; i < 18; i += 6) {
-        vec3 b0 = vec3(bounding_boxes[i], bounding_boxes[i + 1], bounding_boxes[i + 2]);
-        vec3 b1 = vec3(bounding_boxes[i + 3], bounding_boxes[i + 4], bounding_boxes[i + 5]);
-        // vec3 b0 = vec3(-1, -1, -1);
-        // vec3 b1 = vec3(1, 1, 1);
-        // vec3 b0 = vec3(bounding_boxes[12], bounding_boxes[13], bounding_boxes[14]);
-        // vec3 b1 = vec3(bounding_boxes[15], bounding_boxes[16], bounding_boxes[17]);
+    bool skip = false;
 
-        primary_hit = ray_box_collision(origin, direction, b0, b1);
-    }
+    // for (int i = 0; i < vertices.length(); i += 9, vertex_index += 9) {
+    //     if (vertex_index >= indices[model_index]) {
+    //         vertex_index = 0;
+    //         model_index += 1;
+    //         skip = false;
+    //     }
+
+    //     if (vertex_index == 0) {
+    //         vec3 b0 = vec3(bounding_boxes[model_index], bounding_boxes[model_index + 1], bounding_boxes[model_index + 2]);
+    //         vec3 b1 = vec3(bounding_boxes[model_index + 3], bounding_boxes[model_index + 4], bounding_boxes[model_index + 5]);
+    //         hit_t aabb_hit = ray_box_collision(origin, direction, b0, b1);
+
+    //         if (!aabb_hit.exists) {
+    //             skip = true;
+    //         }
+    //     }
+
+    //     if (!skip) {
+    //         vec4 v0 = vec4(vertices[i    ], vertices[i + 1], vertices[i + 2], 1.0);
+    //         vec4 v1 = vec4(vertices[i + 3], vertices[i + 4], vertices[i + 5], 1.0);
+    //         vec4 v2 = vec4(vertices[i + 6], vertices[i + 7], vertices[i + 8], 1.0);
+    //         vec4 normal = vec4(normals[normal_index], normals[normal_index + 1], normals[normal_index + 2], 0.0);
+
+    //         v0 = model_mats[model_index] * v0;
+    //         v1 = model_mats[model_index] * v1;
+    //         v2 = model_mats[model_index] * v2;
+
+    //         hit_t hit = ray_triangle_collision(ray_origin, ray_direction, v0.xyz, v1.xyz, v2.xyz, normal.xyz);
+    //         hit.index = model_index;
+
+    //         if (hit.exists) {
+    //             if (shadow) {
+    //                 if (hit.t <= max_t) {
+    //                     return(hit);
+    //                 }
+    //             } else if (hit.t < nearest_hit.t) {
+    //                 nearest_hit = hit;
+    //             }
+    //         }
+    //     }
+    // }
+
+    // hit_t primary_hit;
+    // primary_hit.exists = false;
+    // primary_hit.t = 9999999;
+
+    // for (int i = 0; i < 18; i += 6) {
+    //     hit_t hit;
+    //     hit.exists = false;
+
+    //     vec3 b0 = vec3(bounding_boxes[i], bounding_boxes[i + 1], bounding_boxes[i + 2]);
+    //     vec3 b1 = vec3(bounding_boxes[i + 3], bounding_boxes[i + 4], bounding_boxes[i + 5]);
+        
+    //     // vec3 b0 = vec3(-1, -1, -1);
+    //     // vec3 b1 = vec3(1, 1, 1);
+    //     // vec3 b0 = vec3(bounding_boxes[12], bounding_boxes[13], bounding_boxes[14]);
+    //     // vec3 b1 = vec3(bounding_boxes[15], bounding_boxes[16], bounding_boxes[17]);
+
+    //     hit = ray_box_collision(origin, direction, b1, b0);
+
+    //     if (hit.exists) {
+    //         if (hit.t < primary_hit.t) {
+    //             primary_hit = hit;
+    //         }
+    //     }
+    // }
 
     if (!primary_hit.exists) {
         imageStore(imgOutput, texelCoord, vec4(color, 1.0));
         return;
     }
 
-    color = vec3(1.0, 0.0, 0.0);
+    // color = vec3(1.0, 0.0, 0.0);
 
-    // if (primary_hit.primitive == TRIANGLE) {
-    //     color = vec3(colors[primary_hit.index * 3], colors[primary_hit.index * 3 + 1], colors[primary_hit.index * 3 + 2]);
-    // } else if (primary_hit.primitive == SPHERE) {
-    //     color = vec3(sphere_colors[primary_hit.index * 3], sphere_colors[primary_hit.index * 3 + 1], sphere_colors[primary_hit.index * 3 + 2]);
-    // } else if (primary_hit.primitive == PLANE) {
-    //     color = vec3(plane_colors[primary_hit.index * 3], plane_colors[primary_hit.index * 3 + 1], plane_colors[primary_hit.index * 3 + 2]);
-    // } else {
-    //     color = vec3(boxes_colors[primary_hit.index * 3], boxes_colors[primary_hit.index * 3 + 1], boxes_colors[primary_hit.index * 3 + 2]);
-    // }
+    if (primary_hit.primitive == TRIANGLE) {
+        color = vec3(colors[primary_hit.index * 3], colors[primary_hit.index * 3 + 1], colors[primary_hit.index * 3 + 2]);
+    } else if (primary_hit.primitive == SPHERE) {
+        color = vec3(sphere_colors[primary_hit.index * 3], sphere_colors[primary_hit.index * 3 + 1], sphere_colors[primary_hit.index * 3 + 2]);
+    } else if (primary_hit.primitive == PLANE) {
+        color = vec3(plane_colors[primary_hit.index * 3], plane_colors[primary_hit.index * 3 + 1], plane_colors[primary_hit.index * 3 + 2]);
+    } else {
+        color = vec3(boxes_colors[primary_hit.index * 3], boxes_colors[primary_hit.index * 3 + 1], boxes_colors[primary_hit.index * 3 + 2]);
+    }
 
     float t = 0.0001;
 
     // REFLECTION PASS
-    // origin = primary_hit.pos + primary_hit.normal * t;
-    // direction = normalize(direction - 2 * primary_hit.normal * dot(direction, primary_hit.normal));
+    origin = primary_hit.pos + primary_hit.normal * t;
+    direction = normalize(direction - 2 * primary_hit.normal * dot(direction, primary_hit.normal));
 
-    // hit_t reflection_hit = calculate_ray(origin, direction, false);
+    hit_t reflection_hit = calculate_ray(origin, direction, false);
 
-    // if (reflection_hit.exists) {
-    //     vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
-    //     origin = reflection_hit.pos + reflection_hit.normal * t;
-    //     direction = normalize(light_position - origin);
+    if (reflection_hit.exists) {
+        vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
+        origin = reflection_hit.pos + reflection_hit.normal * t;
+        direction = normalize(light_position - origin);
 
-    //     hit_t reflection_shadow_hit = calculate_shadow_ray(origin, direction, light_position);
+        hit_t reflection_shadow_hit = calculate_shadow_ray(origin, direction, light_position);
 
-    //     if (reflection_shadow_hit.exists) {
-    //         if (reflection_hit.primitive == TRIANGLE) {
-    //             color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]) * 0.5;
-    //         } else if (reflection_hit.primitive == SPHERE) {
-    //             color += sphere_color * 0.5;
-    //         } else if (reflection_hit.primitive == PLANE) {
-    //             color += plane_color * 0.5;
-    //         } else {
-    //             color += box_color * 0.5;
-    //         }
+        if (reflection_shadow_hit.exists) {
+            if (reflection_hit.primitive == TRIANGLE) {
+                color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]) * 0.5;
+            } else if (reflection_hit.primitive == SPHERE) {
+                color += sphere_color * 0.5;
+            } else if (reflection_hit.primitive == PLANE) {
+                color += plane_color * 0.5;
+            } else {
+                color += box_color * 0.5;
+            }
 
-    //     } else {
-    //         if (reflection_hit.primitive == TRIANGLE) {
-    //             color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]);
-    //         } else if (reflection_hit.primitive == SPHERE) {
-    //             color += sphere_color;
-    //         } else if (reflection_hit.primitive == PLANE) {
-    //             color += plane_color;
-    //         } else {
-    //             color += box_color;
-    //         }
-    //     }  
-    // } else {
-    //     color += void_color * 0.5;
-    // }
+        } else {
+            if (reflection_hit.primitive == TRIANGLE) {
+                color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]);
+            } else if (reflection_hit.primitive == SPHERE) {
+                color += sphere_color;
+            } else if (reflection_hit.primitive == PLANE) {
+                color += plane_color;
+            } else {
+                color += box_color;
+            }
+        }  
+    } else {
+        color += void_color * 0.5;
+    }
 
-    // // SHADOW PASS
-    // vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
+    // SHADOW PASS
+    vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
 
-    // origin = vec3(primary_hit.pos + primary_hit.normal * t);
-    // direction = normalize(light_position - origin);
+    origin = vec3(primary_hit.pos + primary_hit.normal * t);
+    direction = normalize(light_position - origin);
     
-    // hit_t shadow_hit = calculate_shadow_ray(origin, direction, light_position);
+    hit_t shadow_hit = calculate_shadow_ray(origin, direction, light_position);
 
-    // float t_to_light = (light_position.x - origin.x) / direction.x;
+    float t_to_light = (light_position.x - origin.x) / direction.x;
 
-    // if (shadow_hit.exists) {
-    //     color *= 0.5;
-    // }
+    if (shadow_hit.exists) {
+        color *= 0.5;
+    }
 
 
     imageStore(imgOutput, texelCoord, vec4(color, 1.0));
