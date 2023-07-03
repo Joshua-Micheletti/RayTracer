@@ -117,10 +117,10 @@ class Renderer:
         glBindTexture(GL_TEXTURE_2D, self.texture)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
 
-        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, 200, 160)
+        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, 384, 216)
         glBindImageTexture(0, self.texture, 1, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F)        
 
         self.screen_shader = Shader("../shaders/screen_vertex.glsl", "../shaders/screen_fragment.glsl")
@@ -140,7 +140,7 @@ class Renderer:
         glUniform1f(glGetUniformLocation(self.program_id, "lightIndex"), self.light_index)
         glUniformMatrix4fv(glGetUniformLocation(self.program_id, "lightModel"), 1, GL_FALSE, self.light_model)
 
-        glDispatchCompute(int(200 / 8), int(160 / 4), 1)
+        glDispatchCompute(int(384 / 8), int(216 / 4), 1)
         glMemoryBarrier(GL_ALL_BARRIER_BITS)
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)

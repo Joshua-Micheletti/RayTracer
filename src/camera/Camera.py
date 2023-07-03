@@ -27,7 +27,7 @@ class Camera:
         self.yaw = -90.0
         self.pitch = 0
 
-        self.projection_matrix = Matrix44.perspective_projection(45, 200 / 160, 0.1, 10)
+        self.projection_matrix = Matrix44.perspective_projection(45, 192 / 108, 0.1, 10)
         # self.projection_matrix = Matrix44.orthogonal_projection(-200, 200, -160, 160, -1, 1)
 
         self.update_camera_vectors()

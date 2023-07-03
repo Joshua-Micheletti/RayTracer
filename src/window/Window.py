@@ -15,7 +15,7 @@ class Window():
             Window()
         return Window.__instance
     
-    def __init__(self, width = 200, height = 160, name = "Pyllium"):
+    def __init__(self, width = 384, height = 216, name = "Pyllium"):
         if Window.__instance != None:
             raise Exception("Window already exists!")
         
@@ -33,7 +33,7 @@ class Window():
             glfw.terminate()
             return
 
-        glfw.set_window_pos(self.window, 960 - 100, 540 - 80)
+        glfw.set_window_pos(self.window, 960 - 96, 540 - 54)
 
         self.projection_matrix = Matrix44.orthogonal_projection(-width/2, width/2, -height/2, height/2, -1, 1)
 

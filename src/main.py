@@ -26,15 +26,17 @@ def main():
     data.load_model(tree)
     data.load_model(box)
 
-    data.set_color(0, 0.1, 0.1, 0.1)
-    data.set_color(1, 1.0, 0.9, 0.1)
-    data.set_color(2, 0.1, 0.1, 0.9)
+    data.set_color(0, 1.0, 1.0, 1.0, 1.0)
+    data.set_color(1, 0.5, 1.0, 0.5, 1.0)
+    data.set_color(2, 1.0, 1.0, 1.0, 1.0)
 
-    data.load_sphere(-1, 1, -1, 0.5, 1.0, 0.0, 0.0)
+    data.load_sphere(-1, 1, -1, 0.5, 1.0, 0.6, 0.6, 1.0)
+    data.load_sphere(-1, 2, -3, 0.5, 1.0, 1.0, 1.0, 1.0)
 
-    data.load_plane(0, 0, 0, 0, 1, 0, 0, 1, 0)
+    data.load_plane(0, 0, 0, 0, 1, 0, 0.5, 1.0, 0.5, 0.0)
+    # data.load_plane(0, 100, 0, 0, -1, 0, 0.5, 0.5, 1.0)
 
-    data.load_box(-2, 2, 2, -1, 3, 3, 1.0, 0.0, 1.0)
+    data.load_box(-2, 2, 2, -1, 3, 3, 1.0, 1.0, 1.0, 1.0)
 
     dt = 0
 

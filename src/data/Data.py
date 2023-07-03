@@ -63,25 +63,23 @@ class Data:
         self.load_model_mats(model.model_matrix)
         self.load_normals(model.normals)
         self.load_bounding_box(model.bounding_min, model.bounding_max)
-        print(model.bounding_min)
-        print(model.bounding_max)
 
-    def load_sphere(self, center_x, center_y, center_z, radius, color_r, color_g, color_b):
+    def load_sphere(self, center_x, center_y, center_z, radius, color_r, color_g, color_b, shininess):
         self.spheres = np.append(self.spheres, np.array([center_x, center_y, center_z]))
         self.spheres = np.append(self.spheres, np.array([radius]))
-        self.sphere_colors = np.append(self.sphere_colors, np.array([color_r, color_g, color_b]))
+        self.sphere_colors = np.append(self.sphere_colors, np.array([color_r, color_g, color_b, shininess]))
         Renderer.getInstance().update_spheres(self.spheres)
         Renderer.getInstance().update_sphere_colors(self.sphere_colors)
 
-    def load_plane(self, center_x, center_y, center_z, normal_x, normal_y, normal_z, color_r, color_g, color_b):
+    def load_plane(self, center_x, center_y, center_z, normal_x, normal_y, normal_z, color_r, color_g, color_b, shininess):
         self.planes = np.append(self.planes, np.array([center_x, center_y, center_z, normal_x, normal_y, normal_z]))
-        self.plane_colors = np.append(self.plane_colors, np.array([color_r, color_g, color_b]))
+        self.plane_colors = np.append(self.plane_colors, np.array([color_r, color_g, color_b, shininess]))
         Renderer.getInstance().update_planes(self.planes)
         Renderer.getInstance().update_plane_colors(self.plane_colors)
 
-    def load_box(self, b0_x, b0_y, b0_z, b1_x, b1_y, b1_z, color_r, color_g, color_b):
+    def load_box(self, b0_x, b0_y, b0_z, b1_x, b1_y, b1_z, color_r, color_g, color_b, shininess):
         self.boxes = np.append(self.boxes, np.array([b0_x, b0_y, b0_z, b1_x, b1_y, b1_z]))
-        self.boxes_colors = np.append(self.boxes_colors, np.array([color_r, color_g, color_b]))
+        self.boxes_colors = np.append(self.boxes_colors, np.array([color_r, color_g, color_b, shininess]))
         Renderer.getInstance().update_boxes(self.boxes)
         Renderer.getInstance().update_boxes_colors(self.boxes_colors)
 
@@ -96,8 +94,8 @@ class Data:
         self.model_matrixes = np.append(self.model_matrixes, model_mat)
         Renderer.getInstance().update_model_mats(self.model_matrixes)
 
-    def set_color(self, index, r, g, b):
-        self.colors = np.append(self.colors, np.array([r, g, b]))
+    def set_color(self, index, r, g, b, shininess):
+        self.colors = np.append(self.colors, np.array([r, g, b, shininess]))
         Renderer.getInstance().update_colors(self.colors)
 
     def load_normals(self, normals):

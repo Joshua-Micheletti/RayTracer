@@ -85,6 +85,50 @@ struct hit_t {
     int primitive;
 };
 
+const float HCV_EPSILON = 1e-10;
+const float HSL_EPSILON = 1e-10;
+const float HCY_EPSILON = 1e-10;
+
+const float SRGB_GAMMA = 1.0 / 2.2;
+const float SRGB_INVERSE_GAMMA = 2.2;
+const float SRGB_ALPHA = 0.055;
+
+float linear_to_srgb(float channel) {
+    if(channel <= 0.0031308)
+        return 12.92 * channel;
+    else
+        return (1.0 + SRGB_ALPHA) * pow(channel, 1.0/2.4) - SRGB_ALPHA;
+}
+
+// Converts a single srgb channel to rgb
+float srgb_to_linear(float channel) {
+    if (channel <= 0.04045)
+        return channel / 12.92;
+    else
+        return pow((channel + SRGB_ALPHA) / (1.0 + SRGB_ALPHA), 2.4);
+}
+
+
+vec3 rgb_to_srgb(vec3 rgb) {
+    return vec3(
+        linear_to_srgb(rgb.r),
+        linear_to_srgb(rgb.g),
+        linear_to_srgb(rgb.b)
+    );
+}
+
+
+vec3 srgb_to_rgb(vec3 srgb) {
+    return vec3(
+        srgb_to_linear(srgb.r),
+        srgb_to_linear(srgb.g),
+        srgb_to_linear(srgb.b)
+    );
+}
+
+
+
+
 vec3 camera_ray_direction(vec2 pixel, mat4 inverseVP) {
     // coordinate of end ray in screen space
     vec4 screenSpaceFar = vec4(pixel.xy, 1.0, 1.0);
@@ -496,6 +540,8 @@ hit_t calculate_shadow_ray(vec3 ray_origin, vec3 ray_direction, vec3 light_posit
 void main() {
     // vec4 position = vec4(0.0, 0.0, 0.0, 1.0);
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+
+    float blends = 0;
     
     vec2 position = vec2(0.0, 0.0);
 
@@ -505,8 +551,8 @@ void main() {
     position.y = (float(texelCoord.y * 2 - dims.y) / dims.y);
 
     // color vector
-    vec3 void_color = vec3(0.1, 0.4, 1.0);
-    vec3 color = vec3(0.1, 0.4, 1.0);
+    vec3 void_color = srgb_to_rgb(vec3(0.5, 0.5, 1.0));
+    vec3 color = vec3(0.6, 0.6, 1.0);
     vec3 sphere_color = vec3(0.5, 0.5, 0.5);
     vec3 plane_color = vec3(0.1, 1.0, 0.4);
     vec3 box_color = vec3(1.0, 0.1, 1.0);
@@ -525,130 +571,100 @@ void main() {
 
     bool skip = false;
 
-    // for (int i = 0; i < vertices.length(); i += 9, vertex_index += 9) {
-    //     if (vertex_index >= indices[model_index]) {
-    //         vertex_index = 0;
-    //         model_index += 1;
-    //         skip = false;
-    //     }
-
-    //     if (vertex_index == 0) {
-    //         vec3 b0 = vec3(bounding_boxes[model_index], bounding_boxes[model_index + 1], bounding_boxes[model_index + 2]);
-    //         vec3 b1 = vec3(bounding_boxes[model_index + 3], bounding_boxes[model_index + 4], bounding_boxes[model_index + 5]);
-    //         hit_t aabb_hit = ray_box_collision(origin, direction, b0, b1);
-
-    //         if (!aabb_hit.exists) {
-    //             skip = true;
-    //         }
-    //     }
-
-    //     if (!skip) {
-    //         vec4 v0 = vec4(vertices[i    ], vertices[i + 1], vertices[i + 2], 1.0);
-    //         vec4 v1 = vec4(vertices[i + 3], vertices[i + 4], vertices[i + 5], 1.0);
-    //         vec4 v2 = vec4(vertices[i + 6], vertices[i + 7], vertices[i + 8], 1.0);
-    //         vec4 normal = vec4(normals[normal_index], normals[normal_index + 1], normals[normal_index + 2], 0.0);
-
-    //         v0 = model_mats[model_index] * v0;
-    //         v1 = model_mats[model_index] * v1;
-    //         v2 = model_mats[model_index] * v2;
-
-    //         hit_t hit = ray_triangle_collision(ray_origin, ray_direction, v0.xyz, v1.xyz, v2.xyz, normal.xyz);
-    //         hit.index = model_index;
-
-    //         if (hit.exists) {
-    //             if (shadow) {
-    //                 if (hit.t <= max_t) {
-    //                     return(hit);
-    //                 }
-    //             } else if (hit.t < nearest_hit.t) {
-    //                 nearest_hit = hit;
-    //             }
-    //         }
-    //     }
-    // }
-
-    // hit_t primary_hit;
-    // primary_hit.exists = false;
-    // primary_hit.t = 9999999;
-
-    // for (int i = 0; i < 18; i += 6) {
-    //     hit_t hit;
-    //     hit.exists = false;
-
-    //     vec3 b0 = vec3(bounding_boxes[i], bounding_boxes[i + 1], bounding_boxes[i + 2]);
-    //     vec3 b1 = vec3(bounding_boxes[i + 3], bounding_boxes[i + 4], bounding_boxes[i + 5]);
-        
-    //     // vec3 b0 = vec3(-1, -1, -1);
-    //     // vec3 b1 = vec3(1, 1, 1);
-    //     // vec3 b0 = vec3(bounding_boxes[12], bounding_boxes[13], bounding_boxes[14]);
-    //     // vec3 b1 = vec3(bounding_boxes[15], bounding_boxes[16], bounding_boxes[17]);
-
-    //     hit = ray_box_collision(origin, direction, b1, b0);
-
-    //     if (hit.exists) {
-    //         if (hit.t < primary_hit.t) {
-    //             primary_hit = hit;
-    //         }
-    //     }
-    // }
-
     if (!primary_hit.exists) {
-        imageStore(imgOutput, texelCoord, vec4(color, 1.0));
+        imageStore(imgOutput, texelCoord, vec4(void_color, 1.0));
         return;
     }
 
     // color = vec3(1.0, 0.0, 0.0);
 
     if (primary_hit.primitive == TRIANGLE) {
-        color = vec3(colors[primary_hit.index * 3], colors[primary_hit.index * 3 + 1], colors[primary_hit.index * 3 + 2]);
+        color = srgb_to_rgb(vec3(colors[primary_hit.index * 4], colors[primary_hit.index * 4 + 1], colors[primary_hit.index * 4 + 2]));
     } else if (primary_hit.primitive == SPHERE) {
-        color = vec3(sphere_colors[primary_hit.index * 3], sphere_colors[primary_hit.index * 3 + 1], sphere_colors[primary_hit.index * 3 + 2]);
+        color = srgb_to_rgb(vec3(sphere_colors[primary_hit.index * 4], sphere_colors[primary_hit.index * 4 + 1], sphere_colors[primary_hit.index * 4 + 2]));
     } else if (primary_hit.primitive == PLANE) {
-        color = vec3(plane_colors[primary_hit.index * 3], plane_colors[primary_hit.index * 3 + 1], plane_colors[primary_hit.index * 3 + 2]);
+        color = srgb_to_rgb(vec3(plane_colors[primary_hit.index * 4], plane_colors[primary_hit.index * 4 + 1], plane_colors[primary_hit.index * 4 + 2]));
     } else {
-        color = vec3(boxes_colors[primary_hit.index * 3], boxes_colors[primary_hit.index * 3 + 1], boxes_colors[primary_hit.index * 3 + 2]);
+        color = srgb_to_rgb(vec3(boxes_colors[primary_hit.index * 4], boxes_colors[primary_hit.index * 4 + 1], boxes_colors[primary_hit.index * 4 + 2]));
     }
+
+    blends++;
 
     float t = 0.0001;
 
     // REFLECTION PASS
-    origin = primary_hit.pos + primary_hit.normal * t;
-    direction = normalize(direction - 2 * primary_hit.normal * dot(direction, primary_hit.normal));
 
-    hit_t reflection_hit = calculate_ray(origin, direction, false);
+    hit_t reflection_hit = primary_hit;
 
-    if (reflection_hit.exists) {
-        vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
+    for (int i = 0; i < 1; i++) {
         origin = reflection_hit.pos + reflection_hit.normal * t;
-        direction = normalize(light_position - origin);
+        direction = normalize(direction - 2 * reflection_hit.normal * dot(direction, reflection_hit.normal));
 
-        hit_t reflection_shadow_hit = calculate_shadow_ray(origin, direction, light_position);
+        reflection_hit = calculate_ray(origin, direction, false);
 
-        if (reflection_shadow_hit.exists) {
-            if (reflection_hit.primitive == TRIANGLE) {
-                color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]) * 0.5;
-            } else if (reflection_hit.primitive == SPHERE) {
-                color += sphere_color * 0.5;
-            } else if (reflection_hit.primitive == PLANE) {
-                color += plane_color * 0.5;
+        if (reflection_hit.exists) {
+            vec3 reflect_color = vec3(1.0, 1.0, 1.0);
+            vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
+            origin = reflection_hit.pos + reflection_hit.normal * t;
+            direction = normalize(light_position - origin);
+
+            hit_t reflection_shadow_hit = calculate_shadow_ray(origin, direction, light_position);
+
+            if (reflection_shadow_hit.exists) {
+                if (reflection_hit.primitive == TRIANGLE) {
+                    reflect_color = srgb_to_rgb(vec3(colors[reflection_hit.index * 4], colors[reflection_hit.index * 4 + 1], colors[reflection_hit.index * 4 + 2])) * 0.5;
+                    
+                } else if (reflection_hit.primitive == SPHERE) {
+                    reflect_color = srgb_to_rgb(vec3(sphere_colors[reflection_hit.index * 4], sphere_colors[reflection_hit.index * 4 + 1], sphere_colors[reflection_hit.index * 4 + 2])) * 0.5;
+                } else if (reflection_hit.primitive == PLANE) {
+                    reflect_color = srgb_to_rgb(vec3(plane_colors[reflection_hit.index * 4], plane_colors[reflection_hit.index * 4 + 1], plane_colors[reflection_hit.index * 4 + 2])) * 0.5;
+                } else {
+                    reflect_color = srgb_to_rgb(vec3(boxes_colors[reflection_hit.index * 4], boxes_colors[reflection_hit.index * 4 + 1], boxes_colors[reflection_hit.index * 4 + 2])) * 0.5;
+                }
+
             } else {
-                color += box_color * 0.5;
+                if (reflection_hit.primitive == TRIANGLE) {
+                    reflect_color = srgb_to_rgb(vec3(colors[reflection_hit.index * 4], colors[reflection_hit.index * 4 + 1], colors[reflection_hit.index * 4 + 2]));
+                } else if (reflection_hit.primitive == SPHERE) {
+                    reflect_color = srgb_to_rgb(vec3(sphere_colors[reflection_hit.index * 4], sphere_colors[reflection_hit.index * 4 + 1], sphere_colors[reflection_hit.index * 4 + 2]));
+                } else if (reflection_hit.primitive == PLANE) {
+                    reflect_color = srgb_to_rgb(vec3(plane_colors[reflection_hit.index * 4], plane_colors[reflection_hit.index * 4 + 1], plane_colors[reflection_hit.index * 4 + 2]));
+                } else {
+                    reflect_color = srgb_to_rgb(vec3(boxes_colors[reflection_hit.index * 4], boxes_colors[reflection_hit.index * 4 + 1], boxes_colors[reflection_hit.index * 4 + 2]));
+                }
             }
+
+            if (primary_hit.primitive == TRIANGLE) {
+                color = mix(color, color * reflect_color, colors[primary_hit.index * 4 + 3]);
+            } else if (primary_hit.primitive == SPHERE) {
+                color = mix(color, color * reflect_color, sphere_colors[primary_hit.index * 4 + 3]);
+            } else if (primary_hit.primitive == PLANE) {
+                color = mix(color, color * reflect_color, plane_colors[primary_hit.index * 4 + 3]);
+            } else {
+                color = mix(color, color * reflect_color, boxes_colors[primary_hit.index * 4 + 3]);
+            }
+
+            
 
         } else {
-            if (reflection_hit.primitive == TRIANGLE) {
-                color += vec3(colors[reflection_hit.index * 3], colors[reflection_hit.index * 3 + 1], colors[reflection_hit.index * 3 + 2]);
-            } else if (reflection_hit.primitive == SPHERE) {
-                color += sphere_color;
-            } else if (reflection_hit.primitive == PLANE) {
-                color += plane_color;
+            if (primary_hit.primitive == TRIANGLE) {
+                color = mix(color, color * srgb_to_rgb(void_color) * 0.5, colors[primary_hit.index * 4 + 3]);
+            } else if (primary_hit.primitive == SPHERE) {
+                color = mix(color, color * srgb_to_rgb(void_color) * 0.5, sphere_colors[primary_hit.index * 4 + 3]);
+            } else if (primary_hit.primitive == PLANE) {
+                color = mix(color, color * srgb_to_rgb(void_color) * 0.5, plane_colors[primary_hit.index * 4 + 3]);
             } else {
-                color += box_color;
+                color = mix(color, color * srgb_to_rgb(void_color) * 0.5, boxes_colors[primary_hit.index * 4 + 3]);
             }
-        }  
-    } else {
-        color += void_color * 0.5;
+
+            break;
+        }
     }
+    
+
+
+
+    blends++;
 
     // SHADOW PASS
     vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
@@ -664,7 +680,12 @@ void main() {
         color *= 0.5;
     }
 
+    blends++;
 
-    imageStore(imgOutput, texelCoord, vec4(color, 1.0));
+    // color /= 2;
+
+
+    imageStore(imgOutput, texelCoord, vec4(rgb_to_srgb(color), 1.0));
     // imageStore(imgOutput, texelCoord, vec4(bounding_boxes[15], bounding_boxes[16], bounding_boxes[17], 1.0));
+    // imageStore(imgOutput, texelCoord, vec4(plane_colors[3], plane_colors[3], plane_colors[3], 1.0));
 }
