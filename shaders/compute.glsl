@@ -76,6 +76,8 @@ uniform mat4 lightModel;
 #define PLANE 2
 #define BOX 3
 
+#define SHININESS 4
+
 struct hit_t {
     bool exists;
     vec3 pos;
@@ -126,7 +128,13 @@ vec3 srgb_to_rgb(vec3 srgb) {
     );
 }
 
-
+float lambert(vec3 N, vec3 L)
+{
+  vec3 nrmN = normalize(N);
+  vec3 nrmL = normalize(L);
+  float result = dot(nrmN, nrmL);
+  return max(result, 0.0);
+}
 
 
 vec3 camera_ray_direction(vec2 pixel, mat4 inverseVP) {
@@ -590,7 +598,13 @@ void main() {
 
     blends++;
 
-    float t = 0.0001;
+    float t;
+
+    if (primary_hit.primitive == SPHERE) {
+        t = 0.1;
+    } else {
+        t = 0.00001;
+    }
 
     // REFLECTION PASS
 
@@ -613,7 +627,6 @@ void main() {
             if (reflection_shadow_hit.exists) {
                 if (reflection_hit.primitive == TRIANGLE) {
                     reflect_color = srgb_to_rgb(vec3(colors[reflection_hit.index * 4], colors[reflection_hit.index * 4 + 1], colors[reflection_hit.index * 4 + 2])) * 0.5;
-                    
                 } else if (reflection_hit.primitive == SPHERE) {
                     reflect_color = srgb_to_rgb(vec3(sphere_colors[reflection_hit.index * 4], sphere_colors[reflection_hit.index * 4 + 1], sphere_colors[reflection_hit.index * 4 + 2])) * 0.5;
                 } else if (reflection_hit.primitive == PLANE) {
@@ -662,25 +675,26 @@ void main() {
     }
     
 
-
-
-    blends++;
-
     // SHADOW PASS
     vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
 
     origin = vec3(primary_hit.pos + primary_hit.normal * t);
     direction = normalize(light_position - origin);
+
+    vec3 shade_color = color * map(dot(direction, primary_hit.normal), -1.0, 1.0, -1.0, 1.0);
     
     hit_t shadow_hit = calculate_shadow_ray(origin, direction, light_position);
 
     float t_to_light = (light_position.x - origin.x) / direction.x;
 
     if (shadow_hit.exists) {
-        color *= 0.5;
+        // color = (color * 0.5 + shade_color) / 2;
+        color *= 0.0;
+    } else {
+        color = shade_color;
     }
 
-    blends++;
+    // blends++;
 
     // color /= 2;
 
