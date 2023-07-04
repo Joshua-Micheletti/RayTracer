@@ -20,7 +20,7 @@ def main():
 
     tree.scale(0.1, 0.1, 0.1)
     gally.move(5, 0, 0)
-    box.scale(0.2, 0.2, 0.2)
+    box.scale(2, 2, 2)
 
     data.load_model(gally)
     data.load_model(tree)

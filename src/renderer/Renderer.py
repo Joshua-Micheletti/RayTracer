@@ -16,7 +16,7 @@ from pyrr import Matrix44
 
 from model.Model import Model
 from camera.Camera import Camera
-
+import random
 
 class Renderer:
     
@@ -119,11 +119,23 @@ class Renderer:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-
         glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, 384, 216)
-        glBindImageTexture(0, self.texture, 1, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F)        
+        glBindImageTexture(0, self.texture, 1, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F)
+
+        self.last_frame = 0
+        self.last_frame = glGenTextures(1, self.last_frame)
+        glActiveTexture(GL_TEXTURE1)
+        glBindTexture(GL_TEXTURE_2D, self.last_frame)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, 384, 216)
+        glBindImageTexture(0, self.last_frame, 1, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F)
 
         self.screen_shader = Shader("../shaders/screen_vertex.glsl", "../shaders/screen_fragment.glsl")
+
+        self.rendered_frames = 0
 
 
     def render(self):
@@ -135,23 +147,39 @@ class Renderer:
 
         glUseProgram(self.program_id)
 
-        glUniformMatrix4fv(glGetUniformLocation(self.program_id, "inverseViewProjection"), 1, GL_FALSE, self.camera.get_inv_view_proj_matrix())
+        glUniformMatrix4fv(glGetUniformLocation(self.program_id, "inverse_view_projection"), 1, GL_FALSE, self.camera.get_inv_view_proj_matrix())
         glUniform3f(glGetUniformLocation(self.program_id, "eye"), self.camera.position[0], self.camera.position[1], self.camera.position[2])
-        glUniform1f(glGetUniformLocation(self.program_id, "lightIndex"), self.light_index)
-        glUniformMatrix4fv(glGetUniformLocation(self.program_id, "lightModel"), 1, GL_FALSE, self.light_model)
+        glUniform1f(glGetUniformLocation(self.program_id, "light_index"), self.light_index)
+        glUniformMatrix4fv(glGetUniformLocation(self.program_id, "light_model"), 1, GL_FALSE, self.light_model)
+        glUniform1f(glGetUniformLocation(self.program_id, "random_1"), random.random())
+        glUniform1f(glGetUniformLocation(self.program_id, "random_2"), random.random())
+        glUniform1f(glGetUniformLocation(self.program_id, "random_3"), random.random())
+        # print(time.time() / 100000000)
+        print(random.random())
 
         glDispatchCompute(int(384 / 8), int(216 / 4), 1)
         glMemoryBarrier(GL_ALL_BARRIER_BITS)
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glUseProgram(self.screen_shader.program)
-        glUniform1i(glGetUniformLocation(self.program_id, "tex"), 1)
+        glUniform1i(glGetUniformLocation(self.screen_shader.program, "tex"), 0)
+        glUniform1i(glGetUniformLocation(self.screen_shader.program, "old_tex"), 1)
+        glUniform1f(glGetUniformLocation(self.screen_shader.program, "frames"), self.rendered_frames)
         
         glBindVertexArray(self.vao)
 
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
         glBindVertexArray(0)
 
+        self.rendered_frames += 1
+
+        glBindTexture(GL_TEXTURE_2D, self.last_frame)
+        glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 384, 216)
+
+        # glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,)
+        # glCopyImageSubData(self.texture, GL_TEXTURE_2D, 0, 0, 0, 0, self.last_frame, GL_TEXTURE_2D, 0, 0, 0, 0, 384, 216, 1)
+
+    
 
         end = wpt.time()
         self.render_time = end - start
@@ -253,6 +281,11 @@ class Renderer:
         glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
         glBindBufferBase(GL_UNIFORM_BUFFER, 12, self.bounding_boxes)
         glBindBuffer(GL_UNIFORM_BUFFER, 0)
+
+
+    def reset_accumulation(self):
+        glCopyImageSubData(self.texture, GL_TEXTURE_2D, 0, 0, 0, 0, self.last_frame, GL_TEXTURE_2D, 0, 0, 0, 0, 384, 216, 1)
+        self.rendered_frames = 0
 
 
 

@@ -45,6 +45,8 @@ class Controller:
 
         self.states["free_cursor"] = False
 
+        self.states["accumulate"] = False
+
         self.player_movement_speed = 1000
         self.player_jumping_strength = 1000
         self.camera_movement_speed = 40
@@ -111,6 +113,12 @@ class Controller:
 
         if symbol == glfw.KEY_ESCAPE:
             glfw.set_window_should_close(window, 1)
+
+        if symbol == glfw.KEY_R and self.states["accumulate"] == False:
+            self.states["accumulate"] = True
+        elif symbol == glfw.KEY_R and self.states["accumulate"] == True:
+            self.states["accumulate"] = False    
+        
 
 
     def handle_key_release(self, symbol, modifiers):
@@ -200,3 +208,6 @@ class Controller:
             Camera.getInstance().rise(1 * dt)
         if self.states["camera_down"]:
             Camera.getInstance().rise(-1 * dt)
+
+        if self.states["accumulate"] == False:
+            Renderer.getInstance().reset_accumulation()

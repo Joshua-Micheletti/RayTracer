@@ -1,83 +1,80 @@
 #version 430
 
+// input-output
+// ------------------------------------------------------- //
+// position information
 layout (local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
 
-layout (rgba32f, binding = 0) uniform image2D imgOutput;
+// texture to write to
+layout (rgba32f, binding = 0) uniform image2D img_output;
 
-
-layout (std430, binding = 1) buffer vertex
-{ 
+// SSBOs and UBOs
+layout (std430, binding = 1) buffer vertex { 
     float[] vertices;
 };
-
-layout (std140, binding = 2) uniform model
-{
+layout (std140, binding = 2) uniform model {
     mat4[100] model_mats;
 };
-
-layout (binding = 3) uniform index
-{
+layout (binding = 3) uniform index {
     float[100] indices;
 };
-
-layout (binding = 4) uniform color
-{
-    float[100] colors;
+layout (binding = 4) uniform color {
+    float[100] mesh_materials;
 };
-
-layout (binding = 5) uniform normal
-{
-    float[100] normals;
+layout (binding = 5) uniform normal {
+    float[100] mesh_normals;
 };
-
-layout (binding = 6) uniform sphere
-{
+layout (binding = 6) uniform sphere {
     float[100] spheres;
 };
-
-layout (binding = 7) uniform sphere_color
-{
-    float[100] sphere_colors;
+layout (binding = 7) uniform sphere_color {
+    float[100] sphere_materials;
 };
-
-layout (binding = 8) uniform plane
-{
+layout (binding = 8) uniform plane {
     float[100] planes;
 };
-
-layout (binding = 9) uniform plane_color
-{
-    float[100] plane_colors;
+layout (binding = 9) uniform plane_color {
+    float[100] plane_materials;
 };
-
-layout (binding = 10) uniform box
-{
+layout (binding = 10) uniform box {
     float[100] boxes;
 };
-
-layout (binding = 11) uniform box_color
-{
-    float[100] boxes_colors;
+layout (binding = 11) uniform box_color {
+    float[100] box_materials;
 };
-
-layout (binding = 12) uniform bounding_box
-{
+layout (binding = 12) uniform bounding_box {
     float[100] bounding_boxes;
 };
 
-
-uniform mat4 inverseViewProjection;
+// uniforms
+uniform mat4 inverse_view_projection;
 uniform vec3 eye;
-uniform float lightIndex;
-uniform mat4 lightModel;
+uniform float light_index;
+uniform mat4 light_model;
+uniform float random_1;
+uniform float random_2;
+uniform float random_3;
 
+// constants
+// ------------------------------------------------------- //
 #define TRIANGLE 0
 #define SPHERE 1
 #define PLANE 2
 #define BOX 3
 
-#define SHININESS 4
+#define SHINE_OFFSET 3
+#define MATERIAL_SIZE 4
 
+const float HCV_EPSILON = 1e-10;
+const float HSL_EPSILON = 1e-10;
+const float HCY_EPSILON = 1e-10;
+
+const float SRGB_GAMMA = 1.0 / 2.2;
+const float SRGB_INVERSE_GAMMA = 2.2;
+const float SRGB_ALPHA = 0.055;
+
+// custom structs
+// ------------------------------------------------------- //
 struct hit_t {
     bool exists;
     vec3 pos;
@@ -87,13 +84,178 @@ struct hit_t {
     int primitive;
 };
 
-const float HCV_EPSILON = 1e-10;
-const float HSL_EPSILON = 1e-10;
-const float HCY_EPSILON = 1e-10;
 
-const float SRGB_GAMMA = 1.0 / 2.2;
-const float SRGB_INVERSE_GAMMA = 2.2;
-const float SRGB_ALPHA = 0.055;
+// function declarations
+// ------------------------------------------------------- //
+
+// utils
+float map(float, float, float, float, float);
+float rand(float);
+vec3 hash3(float);
+
+
+// color correction
+float linear_to_srgb(float);
+float srgb_to_linear(float);
+vec3 rgb_to_srgb(vec3);
+vec3 srgb_to_rgb(vec3);
+
+// material functions
+vec3 get_color(hit_t);
+float get_shininess(hit_t);
+
+// ray calculation
+hit_t calculate_ray(vec3, vec3, bool);
+hit_t calculate_shadow_ray(vec3, vec3, vec3);
+vec3 camera_ray_direction(vec2, mat4);
+hit_t find_nearest_hit(hit_t, hit_t, hit_t, hit_t);
+
+// triangles
+hit_t ray_triangle_collision(vec3, vec3, vec3, vec3, vec3, vec3);
+float inside_outside_test(vec3, vec3, vec3, vec3, vec3);
+hit_t calculate_triangles(vec3, vec3, bool, float);
+
+// spheres
+hit_t ray_sphere_collision(vec3, vec3, vec3, float);
+hit_t calculate_spheres(vec3, vec3, bool, float);
+
+// planes
+hit_t ray_plane_collision(vec3, vec3, vec3, vec3);
+hit_t calculate_planes(vec3, vec3, bool, float);
+
+// boxes
+hit_t ray_box_collision(vec3, vec3, vec3, vec3);
+hit_t calculate_boxes(vec3, vec3, bool, float);
+
+
+
+// function definition
+// ------------------------------------------------------- //
+
+// main function
+void main() {
+    ivec2 texel_coord = ivec2(gl_GlobalInvocationID.xy);
+    vec2 position = vec2(0.0, 0.0);
+    ivec2 dims = imageSize(img_output);
+    position.x = (float(texel_coord.x * 2 - dims.x) / dims.x);
+    position.y = (float(texel_coord.y * 2 - dims.y) / dims.y);
+
+    // color vector
+    vec3 void_color = srgb_to_rgb(vec3(0.5, 0.5, 1.0));
+    vec3 color = vec3(0.0, 0.0, 0.0);
+    
+    vec3 origin = eye;
+    vec3 direction = camera_ray_direction(position.xy, inverse_view_projection);
+
+    hit_t primary_hit = calculate_ray(origin, direction, false);
+
+    if (!primary_hit.exists) {
+        imageStore(img_output, texel_coord, vec4(void_color, 1.0));
+        return;
+    }
+
+    color = get_color(primary_hit);
+
+    float t;
+    if (primary_hit.primitive == SPHERE) {
+        t = 0.1;
+    } else {
+        t = 0.00001;
+    }
+
+    // REFLECTION PASS
+    hit_t reflection_hit = primary_hit;
+
+    // for (int i = 0; i < 1; i++) {
+    //     origin = reflection_hit.pos + reflection_hit.normal * t;
+    //     direction = normalize(direction - 2 * reflection_hit.normal * dot(direction, reflection_hit.normal));
+
+    //     reflection_hit = calculate_ray(origin, direction, false);
+
+    //     if (reflection_hit.exists) {
+    //         vec3 reflect_color = vec3(1.0, 1.0, 1.0);
+    //         vec3 light_position = vec4(light_model * vec4(0, 0, 0, 1)).xyz;
+    //         origin = reflection_hit.pos + reflection_hit.normal * t;
+    //         direction = normalize(light_position - origin);
+
+    //         hit_t reflection_shadow_hit = calculate_shadow_ray(origin, direction, light_position);
+
+    //         if (reflection_shadow_hit.exists) {
+    //             reflect_color = get_color(reflection_hit) * 0.5;
+
+    //         } else {
+    //             reflect_color = get_color(reflection_hit);
+    //         }
+
+    //         color = mix(color, color * reflect_color, get_shininess(primary_hit));  
+
+    //     } else {
+    //         color = mix(color, color * srgb_to_rgb(void_color) * 0.5, get_shininess(primary_hit));
+    //         break;
+    //     }
+    // }
+
+    // SHADOW PASS
+    
+    origin = vec3(primary_hit.pos + primary_hit.normal * t);
+    // point light:
+    // vec3 light_position = vec4(light_model * vec4(0, 0, 0, 1)).xyz;
+    // direction = normalize(light_position - origin);
+
+    // direction = normalize(vec3(rand(time), rand(time), rand(time)));
+    // direction = normalize(hash3((random * position.x * position.y - 0.5) * 2));
+    direction = normalize(vec3((rand(random_1 + position.x + position.y) - 0.5) * 2, (rand(random_2 + position.x + position.y) - 0.5) * 2, (rand(random_3 + position.x + position.y) - 0.5) * 2));
+
+    // if (dot(direction, primary_hit.normal) < 0) {
+    //     direction = -direction;
+    // }
+    
+    hit_t light_hit = calculate_ray(origin, direction, false);
+
+    color += get_color(light_hit) * 0.5;
+
+    origin = vec3(light_hit.pos + light_hit.normal * t);
+    direction = normalize(vec3((rand(random_1 + position.x + position.y) - 0.5) * 2, (rand(random_2 + position.x + position.y) - 0.5) * 2, (rand(random_3 + position.x + position.y) - 0.5) * 2));
+
+    light_hit = calculate_ray(origin, direction, false);
+
+
+
+
+    // hit_t shadow_hit = calculate_shadow_ray(origin, direction, light_position);
+
+    // if ((shadow_hit.exists && shadow_hit.primitive != TRIANGLE) || (shadow_hit.exists && shadow_hit.primitive != TRIANGLE && shadow_hit.index != 2)) {
+    //     color *= 0.0;
+    // }
+
+
+
+    if (light_hit.exists && light_hit.primitive == TRIANGLE && light_hit.index == 2) {
+
+    } else {
+        color *= 0.0;
+    }
+
+    // if (shadow_hit.exists && shadow_hit.primitive != TRIANGLE shadow_hit.index == 2) {
+       
+    // } else {
+    //     color *= 0.0;
+    // }
+
+    // if (shadow_hit.exists) {
+    //     color *= 0.0;
+    // } else {
+    //     color = color * map(dot(direction, primary_hit.normal), -1.0, 1.0, -1.0, 1.0);;
+    // }
+
+    imageStore(img_output, texel_coord, vec4(rgb_to_srgb(color), 1.0));
+    // imageStore(img_output, texel_coord, vec4(vec3(hash3(random * position.x * position.y)), 1.0));
+    // imageStore(img_output, texel_coord, vec4(direction, 1.0));
+    // imageStore(img_output, texel_coord, vec4(random_1, random_2, random_3, 1.0));
+}
+
+
+
 
 float linear_to_srgb(float channel) {
     if(channel <= 0.0031308)
@@ -128,12 +290,37 @@ vec3 srgb_to_rgb(vec3 srgb) {
     );
 }
 
-float lambert(vec3 N, vec3 L)
-{
-  vec3 nrmN = normalize(N);
-  vec3 nrmL = normalize(L);
-  float result = dot(nrmN, nrmL);
-  return max(result, 0.0);
+
+vec3 get_color(hit_t target) {
+    vec3 color = vec3(0, 0, 0);
+
+    if (target.primitive == TRIANGLE) {
+        color = srgb_to_rgb(vec3(mesh_materials  [target.index * MATERIAL_SIZE], mesh_materials  [target.index * MATERIAL_SIZE + 1], mesh_materials  [target.index * MATERIAL_SIZE + 2]));
+    } else if (target.primitive == SPHERE) {
+        color = srgb_to_rgb(vec3(sphere_materials[target.index * MATERIAL_SIZE], sphere_materials[target.index * MATERIAL_SIZE + 1], sphere_materials[target.index * MATERIAL_SIZE + 2]));
+    } else if (target.primitive == PLANE) {
+        color = srgb_to_rgb(vec3(plane_materials [target.index * MATERIAL_SIZE], plane_materials [target.index * MATERIAL_SIZE + 1], plane_materials [target.index * MATERIAL_SIZE + 2]));
+    } else {
+        color = srgb_to_rgb(vec3(box_materials   [target.index * MATERIAL_SIZE], box_materials   [target.index * MATERIAL_SIZE + 1], box_materials   [target.index * MATERIAL_SIZE + 2]));
+    }
+
+    return(color);
+}
+
+float get_shininess(hit_t target) {
+    float shininess = 0;
+
+    if (target.primitive == TRIANGLE) {
+        shininess = mesh_materials  [target.index * MATERIAL_SIZE + SHINE_OFFSET];
+    } else if (target.primitive == SPHERE) {
+        shininess = sphere_materials[target.index * MATERIAL_SIZE + SHINE_OFFSET];
+    } else if (target.primitive == PLANE) {
+        shininess = plane_materials [target.index * MATERIAL_SIZE + SHINE_OFFSET];
+    } else {
+        shininess = box_materials   [target.index * MATERIAL_SIZE + SHINE_OFFSET];
+    }
+
+    return(shininess);
 }
 
 
@@ -152,6 +339,16 @@ vec3 camera_ray_direction(vec2 pixel, mat4 inverseVP) {
 
     return(normalize(far.xyz - near.xyz));
 }
+
+
+float rand(float co) { return fract(sin(co*(91.3458)) * 47453.5453); }
+float rand(vec2 co){ return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453); }
+float rand(vec3 co){ return rand(co.xy+rand(co.z)); }
+
+vec3 hash3(float seed) {
+    return fract(sin(vec3(seed+=0.1,seed+=0.1,seed+=0.1))*vec3(43758.5453123,22578.1459123,19642.3490423));
+}
+
 
 float map(float x, float in_min, float in_max, float out_min, float out_max) {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -420,7 +617,7 @@ hit_t calculate_triangles(vec3 ray_origin, vec3 ray_direction, bool shadow, floa
         }
 
         if (shadow) {
-            if (model_index == lightIndex) {
+            if (model_index == light_index) {
                 break;
             }
         }
@@ -444,7 +641,7 @@ hit_t calculate_triangles(vec3 ray_origin, vec3 ray_direction, bool shadow, floa
             vec4 v0 = vec4(vertices[i    ], vertices[i + 1], vertices[i + 2], 1.0);
             vec4 v1 = vec4(vertices[i + 3], vertices[i + 4], vertices[i + 5], 1.0);
             vec4 v2 = vec4(vertices[i + 6], vertices[i + 7], vertices[i + 8], 1.0);
-            vec4 normal = vec4(normals[normal_index], normals[normal_index + 1], normals[normal_index + 2], 0.0);
+            vec4 normal = vec4(mesh_normals[normal_index], mesh_normals[normal_index + 1], mesh_normals[normal_index + 2], 0.0);
 
             v0 = model_mats[model_index] * v0;
             v1 = model_mats[model_index] * v1;
@@ -542,164 +739,4 @@ hit_t calculate_shadow_ray(vec3 ray_origin, vec3 ray_direction, vec3 light_posit
     hit_t none;
     none.exists = false;
     return(none);
-}
-
-
-void main() {
-    // vec4 position = vec4(0.0, 0.0, 0.0, 1.0);
-    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-
-    float blends = 0;
-    
-    vec2 position = vec2(0.0, 0.0);
-
-    ivec2 dims = imageSize(imgOutput);
-
-    position.x = (float(texelCoord.x * 2 - dims.x) / dims.x);
-    position.y = (float(texelCoord.y * 2 - dims.y) / dims.y);
-
-    // color vector
-    vec3 void_color = srgb_to_rgb(vec3(0.5, 0.5, 1.0));
-    vec3 color = vec3(0.6, 0.6, 1.0);
-    vec3 sphere_color = vec3(0.5, 0.5, 0.5);
-    vec3 plane_color = vec3(0.1, 1.0, 0.4);
-    vec3 box_color = vec3(1.0, 0.1, 1.0);
-    
-    vec3 origin = eye;
-    vec3 direction = camera_ray_direction(position.xy, inverseViewProjection);
-
-    // index variable to keep track of what model we're rendering
-    int model_index = 0;
-    // counter of vertices inside the model
-    float vertex_index = 0;
-
-    hit_t primary_hit = calculate_ray(origin, direction, false);
-    // hit_t primary_hit;
-    // primary_hit.exists = false;
-
-    bool skip = false;
-
-    if (!primary_hit.exists) {
-        imageStore(imgOutput, texelCoord, vec4(void_color, 1.0));
-        return;
-    }
-
-    // color = vec3(1.0, 0.0, 0.0);
-
-    if (primary_hit.primitive == TRIANGLE) {
-        color = srgb_to_rgb(vec3(colors[primary_hit.index * 4], colors[primary_hit.index * 4 + 1], colors[primary_hit.index * 4 + 2]));
-    } else if (primary_hit.primitive == SPHERE) {
-        color = srgb_to_rgb(vec3(sphere_colors[primary_hit.index * 4], sphere_colors[primary_hit.index * 4 + 1], sphere_colors[primary_hit.index * 4 + 2]));
-    } else if (primary_hit.primitive == PLANE) {
-        color = srgb_to_rgb(vec3(plane_colors[primary_hit.index * 4], plane_colors[primary_hit.index * 4 + 1], plane_colors[primary_hit.index * 4 + 2]));
-    } else {
-        color = srgb_to_rgb(vec3(boxes_colors[primary_hit.index * 4], boxes_colors[primary_hit.index * 4 + 1], boxes_colors[primary_hit.index * 4 + 2]));
-    }
-
-    blends++;
-
-    float t;
-
-    if (primary_hit.primitive == SPHERE) {
-        t = 0.1;
-    } else {
-        t = 0.00001;
-    }
-
-    // REFLECTION PASS
-
-    hit_t reflection_hit = primary_hit;
-
-    for (int i = 0; i < 1; i++) {
-        origin = reflection_hit.pos + reflection_hit.normal * t;
-        direction = normalize(direction - 2 * reflection_hit.normal * dot(direction, reflection_hit.normal));
-
-        reflection_hit = calculate_ray(origin, direction, false);
-
-        if (reflection_hit.exists) {
-            vec3 reflect_color = vec3(1.0, 1.0, 1.0);
-            vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
-            origin = reflection_hit.pos + reflection_hit.normal * t;
-            direction = normalize(light_position - origin);
-
-            hit_t reflection_shadow_hit = calculate_shadow_ray(origin, direction, light_position);
-
-            if (reflection_shadow_hit.exists) {
-                if (reflection_hit.primitive == TRIANGLE) {
-                    reflect_color = srgb_to_rgb(vec3(colors[reflection_hit.index * 4], colors[reflection_hit.index * 4 + 1], colors[reflection_hit.index * 4 + 2])) * 0.5;
-                } else if (reflection_hit.primitive == SPHERE) {
-                    reflect_color = srgb_to_rgb(vec3(sphere_colors[reflection_hit.index * 4], sphere_colors[reflection_hit.index * 4 + 1], sphere_colors[reflection_hit.index * 4 + 2])) * 0.5;
-                } else if (reflection_hit.primitive == PLANE) {
-                    reflect_color = srgb_to_rgb(vec3(plane_colors[reflection_hit.index * 4], plane_colors[reflection_hit.index * 4 + 1], plane_colors[reflection_hit.index * 4 + 2])) * 0.5;
-                } else {
-                    reflect_color = srgb_to_rgb(vec3(boxes_colors[reflection_hit.index * 4], boxes_colors[reflection_hit.index * 4 + 1], boxes_colors[reflection_hit.index * 4 + 2])) * 0.5;
-                }
-
-            } else {
-                if (reflection_hit.primitive == TRIANGLE) {
-                    reflect_color = srgb_to_rgb(vec3(colors[reflection_hit.index * 4], colors[reflection_hit.index * 4 + 1], colors[reflection_hit.index * 4 + 2]));
-                } else if (reflection_hit.primitive == SPHERE) {
-                    reflect_color = srgb_to_rgb(vec3(sphere_colors[reflection_hit.index * 4], sphere_colors[reflection_hit.index * 4 + 1], sphere_colors[reflection_hit.index * 4 + 2]));
-                } else if (reflection_hit.primitive == PLANE) {
-                    reflect_color = srgb_to_rgb(vec3(plane_colors[reflection_hit.index * 4], plane_colors[reflection_hit.index * 4 + 1], plane_colors[reflection_hit.index * 4 + 2]));
-                } else {
-                    reflect_color = srgb_to_rgb(vec3(boxes_colors[reflection_hit.index * 4], boxes_colors[reflection_hit.index * 4 + 1], boxes_colors[reflection_hit.index * 4 + 2]));
-                }
-            }
-
-            if (primary_hit.primitive == TRIANGLE) {
-                color = mix(color, color * reflect_color, colors[primary_hit.index * 4 + 3]);
-            } else if (primary_hit.primitive == SPHERE) {
-                color = mix(color, color * reflect_color, sphere_colors[primary_hit.index * 4 + 3]);
-            } else if (primary_hit.primitive == PLANE) {
-                color = mix(color, color * reflect_color, plane_colors[primary_hit.index * 4 + 3]);
-            } else {
-                color = mix(color, color * reflect_color, boxes_colors[primary_hit.index * 4 + 3]);
-            }
-
-            
-
-        } else {
-            if (primary_hit.primitive == TRIANGLE) {
-                color = mix(color, color * srgb_to_rgb(void_color) * 0.5, colors[primary_hit.index * 4 + 3]);
-            } else if (primary_hit.primitive == SPHERE) {
-                color = mix(color, color * srgb_to_rgb(void_color) * 0.5, sphere_colors[primary_hit.index * 4 + 3]);
-            } else if (primary_hit.primitive == PLANE) {
-                color = mix(color, color * srgb_to_rgb(void_color) * 0.5, plane_colors[primary_hit.index * 4 + 3]);
-            } else {
-                color = mix(color, color * srgb_to_rgb(void_color) * 0.5, boxes_colors[primary_hit.index * 4 + 3]);
-            }
-
-            break;
-        }
-    }
-    
-
-    // SHADOW PASS
-    vec3 light_position = vec4(lightModel * vec4(0, 0, 0, 1)).xyz;
-
-    origin = vec3(primary_hit.pos + primary_hit.normal * t);
-    direction = normalize(light_position - origin);
-
-    vec3 shade_color = color * map(dot(direction, primary_hit.normal), -1.0, 1.0, -1.0, 1.0);
-    
-    hit_t shadow_hit = calculate_shadow_ray(origin, direction, light_position);
-
-    float t_to_light = (light_position.x - origin.x) / direction.x;
-
-    if (shadow_hit.exists) {
-        // color = (color * 0.5 + shade_color) / 2;
-        color *= 0.0;
-    } else {
-        color = shade_color;
-    }
-
-    // blends++;
-
-    // color /= 2;
-
-
-    imageStore(imgOutput, texelCoord, vec4(rgb_to_srgb(color), 1.0));
-    // imageStore(imgOutput, texelCoord, vec4(bounding_boxes[15], bounding_boxes[16], bounding_boxes[17], 1.0));
-    // imageStore(imgOutput, texelCoord, vec4(plane_colors[3], plane_colors[3], plane_colors[3], 1.0));
 }
