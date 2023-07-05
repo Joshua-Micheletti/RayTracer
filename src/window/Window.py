@@ -15,7 +15,7 @@ class Window():
             Window()
         return Window.__instance
     
-    def __init__(self, width = 1280, height = 720, name = "Pyllium"):
+    def __init__(self, width = 384, height = 216, name = "Pyllium"):
         if Window.__instance != None:
             raise Exception("Window already exists!")
         

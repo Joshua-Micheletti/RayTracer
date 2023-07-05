@@ -45,6 +45,12 @@ layout (binding = 11) uniform box_color {
 layout (binding = 12) uniform bounding_box {
     float[100] bounding_boxes;
 };
+layout (binding = 13) uniform material {
+    float[100] materials;
+};
+layout (binding = 14) uniform mesh_material_index {
+    float[100] mesh_material_indices;
+};
 
 // uniforms
 uniform mat4 inverse_view_projection;
@@ -65,7 +71,7 @@ uniform float bounces;
 #define BOX 3
 
 #define SHINE_OFFSET 3
-#define MATERIAL_SIZE 4
+#define MATERIAL_SIZE 8
 
 const float HCV_EPSILON = 1e-10;
 const float HSL_EPSILON = 1e-10;
@@ -84,6 +90,7 @@ struct hit_t {
     vec3 normal;
     int index;
     int primitive;
+    int material_index;
 };
 
 
@@ -106,6 +113,8 @@ vec3 srgb_to_rgb(vec3);
 // material functions
 vec3 get_color(hit_t);
 float get_shininess(hit_t);
+vec4 get_emission(hit_t);
+float get_smoothness(hit_t);
 
 // ray calculation
 hit_t calculate_ray(vec3, vec3, bool);
@@ -238,16 +247,18 @@ void main() {
 
         origin = vec3(hit.pos + hit.normal * 0.001);
 
-        direction = (vec3(n8rand(position, time), n8rand(position + 0.1, time), n8rand(position + 0.2, time)) - 0.5) * 2;
-        // direction = normalize(direction - 2 * hit.normal * dot(direction, hit.normal));
+        vec3 diffuse_direction = (vec3(n8rand(position, time), n8rand(position + 0.1, time), n8rand(position + 0.2, time)) - 0.5) * 2;
+        vec3 specular_direction = normalize(direction - 2 * hit.normal * dot(direction, hit.normal));
+
+        direction = mix(diffuse_direction, specular_direction, get_smoothness(hit));
 
         if (dot(direction, hit.normal) < 0) {
             direction = -direction;
         }
+        vec4 emission = get_emission(hit);
+        vec3 emitted_light = emission.xyz * emission.w;
 
-        if (hit.index == 2 && hit.primitive == TRIANGLE) {
-            light += 1.0 * color;
-        }
+        light += emitted_light * color;
 
         color *= get_color(hit);
     }
@@ -409,17 +420,47 @@ vec3 srgb_to_rgb(vec3 srgb) {
 vec3 get_color(hit_t target) {
     vec3 color = vec3(0, 0, 0);
 
+    // if (target.primitive == TRIANGLE) {
+    //     color = srgb_to_rgb(vec3(mesh_materials  [target.index * MATERIAL_SIZE], mesh_materials  [target.index * MATERIAL_SIZE + 1], mesh_materials  [target.index * MATERIAL_SIZE + 2]));
+    // } else if (target.primitive == SPHERE) {
+    //     color = srgb_to_rgb(vec3(sphere_materials[target.index * MATERIAL_SIZE], sphere_materials[target.index * MATERIAL_SIZE + 1], sphere_materials[target.index * MATERIAL_SIZE + 2]));
+    // } else if (target.primitive == PLANE) {
+    //     color = srgb_to_rgb(vec3(plane_materials [target.index * MATERIAL_SIZE], plane_materials [target.index * MATERIAL_SIZE + 1], plane_materials [target.index * MATERIAL_SIZE + 2]));
+    // } else {
+    //     color = srgb_to_rgb(vec3(box_materials   [target.index * MATERIAL_SIZE], box_materials   [target.index * MATERIAL_SIZE + 1], box_materials   [target.index * MATERIAL_SIZE + 2]));
+    // }
+
     if (target.primitive == TRIANGLE) {
-        color = srgb_to_rgb(vec3(mesh_materials  [target.index * MATERIAL_SIZE], mesh_materials  [target.index * MATERIAL_SIZE + 1], mesh_materials  [target.index * MATERIAL_SIZE + 2]));
-    } else if (target.primitive == SPHERE) {
-        color = srgb_to_rgb(vec3(sphere_materials[target.index * MATERIAL_SIZE], sphere_materials[target.index * MATERIAL_SIZE + 1], sphere_materials[target.index * MATERIAL_SIZE + 2]));
-    } else if (target.primitive == PLANE) {
-        color = srgb_to_rgb(vec3(plane_materials [target.index * MATERIAL_SIZE], plane_materials [target.index * MATERIAL_SIZE + 1], plane_materials [target.index * MATERIAL_SIZE + 2]));
+        color = srgb_to_rgb(vec3(materials[int(mesh_material_indices[target.index]) * MATERIAL_SIZE], materials[int(mesh_material_indices[target.index]) * MATERIAL_SIZE + 1], materials[int(mesh_material_indices[target.index]) * MATERIAL_SIZE + 2]));
     } else {
-        color = srgb_to_rgb(vec3(box_materials   [target.index * MATERIAL_SIZE], box_materials   [target.index * MATERIAL_SIZE + 1], box_materials   [target.index * MATERIAL_SIZE + 2]));
+        color = srgb_to_rgb(vec3(materials[target.material_index * MATERIAL_SIZE], materials[target.material_index * MATERIAL_SIZE + 1], materials[target.material_index * MATERIAL_SIZE + 2]));
     }
 
     return(color);
+}
+
+vec4 get_emission(hit_t target) {
+    vec4 emission = vec4(0, 0, 0, 0);
+
+    if (target.primitive == TRIANGLE) {
+        emission = vec4(srgb_to_rgb(vec3(materials[int(mesh_material_indices[target.index]) * MATERIAL_SIZE + 3], materials[int(mesh_material_indices[target.index]) * MATERIAL_SIZE + 4], materials[int(mesh_material_indices[target.index]) * MATERIAL_SIZE + 5])), materials[int(mesh_material_indices[target.index]) * MATERIAL_SIZE + 6]);
+    } else {
+        emission = vec4(srgb_to_rgb(vec3(materials[target.material_index * MATERIAL_SIZE + 3], materials[target.material_index * MATERIAL_SIZE + 4], materials[target.material_index * MATERIAL_SIZE + 5])), materials[target.material_index * MATERIAL_SIZE + 6]);
+    }
+
+    return(emission);
+}
+
+float get_smoothness(hit_t target) {
+    float smoothness = 0;
+
+    if (target.primitive == TRIANGLE) {
+        smoothness = materials[int(mesh_material_indices[target.index]) * MATERIAL_SIZE + 7];
+    } else {
+        smoothness = materials[target.material_index * MATERIAL_SIZE + 7];
+    }
+
+    return(smoothness);
 }
 
 float get_shininess(hit_t target) {
@@ -495,7 +536,7 @@ hit_t ray_plane_collision(vec3 ray_origin, vec3 ray_direction, vec3 position, ve
     float denom = dot(normal, ray_direction);
     float t;
 
-    if (abs(denom) > 0.0000001) {
+    if (-denom > 0.0000001) {
         t = dot(position - ray_origin, normal) / denom;
         
         if (t > 0) {
@@ -514,12 +555,13 @@ hit_t calculate_planes(vec3 ray_origin, vec3 ray_direction, bool shadow, float m
     nearest_hit.exists = false;
     nearest_hit.t = 9999999;
 
-    for (int i = 0; i <= planes.length(); i += 6) {
+    for (int i = 0; i <= planes.length(); i += 7) {
         vec3 position = vec3(planes[i], planes[i + 1], planes[i + 2]);
         vec3 normal = vec3(planes[i + 3], planes[i + 4], planes[i + 5]);
 
         hit_t hit = ray_plane_collision(ray_origin, ray_direction, position, normal);
-        hit.index = int(i / 6);
+        hit.index = int(i / 7);
+        hit.material_index = int(planes[i + 6]);
 
         if (hit.exists) {
             if (shadow) {
@@ -584,12 +626,13 @@ hit_t calculate_spheres(vec3 ray_origin, vec3 ray_direction, bool shadow, float 
 
     // float radius = 0.5;
 
-    for (int i = 0; i <= spheres.length(); i += 4) {
+    for (int i = 0; i <= spheres.length(); i += 5) {
         vec3 center = vec3(spheres[i], spheres[i + 1], spheres[i + 2]);
         float radius = spheres[i + 3];
 
         hit_t hit = ray_sphere_collision(ray_origin, ray_direction, center, radius);
-        hit.index = int(i / 4);
+        hit.index = int(i / 5);
+        hit.material_index = int(spheres[i + 4]);
 
         if (hit.exists) {
             if (shadow) {
@@ -688,12 +731,13 @@ hit_t calculate_boxes(vec3 ray_origin, vec3 ray_direction, bool shadow, float ma
     nearest_hit.exists = false;
     nearest_hit.t = 9999999;
 
-    for (int i = 0; i <= boxes.length(); i += 6) {
+    for (int i = 0; i <= boxes.length(); i += 7) {
         vec3 b0 = vec3(boxes[i], boxes[i + 1], boxes[i + 2]);
         vec3 b1 = vec3(boxes[i + 3], boxes[i + 4], boxes[i + 5]);
 
         hit_t hit = ray_box_collision(ray_origin, ray_direction, b0, b1);
-        hit.index = int(i / 6);
+        hit.index = int(i / 7);
+        hit.material_index = int(boxes[i + 6]);
 
         if (hit.exists) {
             if (shadow) {
@@ -724,7 +768,6 @@ hit_t calculate_triangles(vec3 ray_origin, vec3 ray_direction, bool shadow, floa
     bool skip = false;
 
     for (int i = 0; i <= vertices.length(); i += 9, vertex_index += 9, normal_index += 3) {
-
         if (vertex_index >= indices[model_index]) {
             vertex_index = 0;
             model_index += 1;

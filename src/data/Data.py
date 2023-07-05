@@ -37,6 +37,9 @@ class Data:
 
         self.bounding_boxes = np.empty([0])
 
+        self.materials = np.empty([0])
+        self.mesh_material_indices = np.empty([0])
+
         self.to_update = True
 
 
@@ -57,31 +60,40 @@ class Data:
         self.models[index].move(x, y, z)
 
 
-    def load_model(self, model):
+    def load_model(self, model, material_index = 0):
         self.models = np.append(self.models, model)
         self.load_vertices(model.vertices)
         self.load_model_mats(model.model_matrix)
         self.load_normals(model.normals)
         self.load_bounding_box(model.bounding_min, model.bounding_max)
+        self.mesh_material_indices = np.append(self.mesh_material_indices, material_index)
+        Renderer.getInstance().update_mesh_material_indices(self.mesh_material_indices)
 
-    def load_sphere(self, center_x, center_y, center_z, radius, color_r, color_g, color_b, shininess):
+    def load_sphere(self, center_x, center_y, center_z, radius, material_index = 0):
         self.spheres = np.append(self.spheres, np.array([center_x, center_y, center_z]))
         self.spheres = np.append(self.spheres, np.array([radius]))
-        self.sphere_colors = np.append(self.sphere_colors, np.array([color_r, color_g, color_b, shininess]))
+        self.spheres = np.append(self.spheres, np.array([material_index]))
+        # self.sphere_colors = np.append(self.sphere_colors, np.array([color_r, color_g, color_b, shininess]))
+
         Renderer.getInstance().update_spheres(self.spheres)
-        Renderer.getInstance().update_sphere_colors(self.sphere_colors)
+        # Renderer.getInstance().update_sphere_colors(self.sphere_colors)
 
-    def load_plane(self, center_x, center_y, center_z, normal_x, normal_y, normal_z, color_r, color_g, color_b, shininess):
-        self.planes = np.append(self.planes, np.array([center_x, center_y, center_z, normal_x, normal_y, normal_z]))
-        self.plane_colors = np.append(self.plane_colors, np.array([color_r, color_g, color_b, shininess]))
+    def load_plane(self, center_x, center_y, center_z, normal_x, normal_y, normal_z, material_index = 0):
+        self.planes = np.append(self.planes, np.array([center_x, center_y, center_z, normal_x, normal_y, normal_z, material_index]))
+        # self.plane_colors = np.append(self.plane_colors, np.array([color_r, color_g, color_b, shininess]))
         Renderer.getInstance().update_planes(self.planes)
-        Renderer.getInstance().update_plane_colors(self.plane_colors)
+        # Renderer.getInstance().update_plane_colors(self.plane_colors)
 
-    def load_box(self, b0_x, b0_y, b0_z, b1_x, b1_y, b1_z, color_r, color_g, color_b, shininess):
-        self.boxes = np.append(self.boxes, np.array([b0_x, b0_y, b0_z, b1_x, b1_y, b1_z]))
-        self.boxes_colors = np.append(self.boxes_colors, np.array([color_r, color_g, color_b, shininess]))
+    def load_box(self, b0_x, b0_y, b0_z, b1_x, b1_y, b1_z, material_index = 0):
+        self.boxes = np.append(self.boxes, np.array([b0_x, b0_y, b0_z, b1_x, b1_y, b1_z, material_index]))
+        # self.boxes_colors = np.append(self.boxes_colors, np.array([color_r, color_g, color_b, shininess]))
         Renderer.getInstance().update_boxes(self.boxes)
-        Renderer.getInstance().update_boxes_colors(self.boxes_colors)
+        # Renderer.getInstance().update_boxes_colors(self.boxes_colors)
+
+
+    def load_material(self, color_r, color_g, color_b, e_color_r, e_color_g, e_color_b, e_color_s, smoothness):
+        self.materials = np.append(self.materials, np.array([color_r, color_g, color_b, e_color_r, e_color_g, e_color_b, e_color_s, smoothness]))
+        Renderer.getInstance().update_materials(self.materials)
 
 
     def load_vertices(self, vertices):

@@ -76,9 +76,11 @@ class Renderer:
         self.boxes_colors = glGenBuffers(1)
         self.swap = glGenBuffers(1)
         self.bounding_boxes = glGenBuffers(1)
+        self.materials = glGenBuffers(1)
+        self.mesh_material_indices = glGenBuffers(1)
 
-        self.render_x = 1280
-        self.render_y = 720
+        self.render_x = 384
+        self.render_y = 216
 
 
         self.camera = Camera.getInstance()
@@ -289,6 +291,23 @@ class Renderer:
         glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
         glBindBufferBase(GL_UNIFORM_BUFFER, 12, self.bounding_boxes)
         glBindBuffer(GL_UNIFORM_BUFFER, 0)
+
+    def update_materials(self, materials):
+        data = (GLfloat * len(materials))(*materials)
+
+        glBindBuffer(GL_UNIFORM_BUFFER, self.materials)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 13, self.materials)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
+
+    def update_mesh_material_indices(self, mesh_mat_i):
+        data = (GLfloat * len(mesh_mat_i))(*mesh_mat_i)
+
+        glBindBuffer(GL_UNIFORM_BUFFER, self.mesh_material_indices)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(data), data, GL_STATIC_DRAW)
+        glBindBufferBase(GL_UNIFORM_BUFFER, 14, self.mesh_material_indices)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
+
 
 
     def reset_accumulation(self):
