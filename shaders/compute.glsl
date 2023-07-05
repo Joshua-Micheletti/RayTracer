@@ -54,6 +54,8 @@ uniform mat4 light_model;
 uniform float random_1;
 uniform float random_2;
 uniform float random_3;
+uniform float time;
+uniform float bounces;
 
 // constants
 // ------------------------------------------------------- //
@@ -91,6 +93,7 @@ struct hit_t {
 // utils
 float map(float, float, float, float, float);
 float rand(float);
+float rand(vec2);
 vec3 hash3(float);
 
 
@@ -127,6 +130,82 @@ hit_t calculate_planes(vec3, vec3, bool, float);
 hit_t ray_box_collision(vec3, vec3, vec3, vec3);
 hit_t calculate_boxes(vec3, vec3, bool, float);
 
+const float PHI = 1.61803398874989484820459; // Φ = Golden Ratio 
+
+float gold_noise(in vec2 xy, in float seed) {
+    return fract(tan(distance(xy*PHI, xy)*seed)*xy.x);
+}
+
+vec3 polar_to_cartesian(vec3 polar) {
+    return(vec3(polar.x * sin(polar.z) * cos(polar.y), polar.x * sin(polar.z) * sin(polar.y), polar.x * cos(polar.z)));
+}
+
+uint xorshf32(uint state) { 
+     // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs". 
+    uint x = state; 
+    x ^= x << 13; 
+    x ^= x >> 17; 
+    x ^= x << 5; 
+    return x; 
+}
+
+
+float nrand( vec2 n )
+{
+	return fract(sin(dot(n.xy, vec2(12.9898, 78.233)))* 43758.5453);
+}
+
+
+
+float n8rand( vec2 n, float time)
+{
+	float t = time;
+	float nrnd0 = nrand( n + 0.07*t );
+	float nrnd1 = nrand( n + 0.11*t );	
+	float nrnd2 = nrand( n + 0.13*t );
+	float nrnd3 = nrand( n + 0.17*t );
+    
+    float nrnd4 = nrand( n + 0.19*t );
+    float nrnd5 = nrand( n + 0.23*t );
+    float nrnd6 = nrand( n + 0.29*t );
+    float nrnd7 = nrand( n + 0.31*t );
+    
+	return (nrnd0+nrnd1+nrnd2+nrnd3 +nrnd4+nrnd5+nrnd6+nrnd7) / 8.0;
+}
+
+
+
+
+
+
+float random_value(inout int state) {
+    state = state * 747796405 + 2891336453;
+    int result = ((state >> ((state >> 28) + 4)) ^ state) * 277803737;
+    result = (result >> 22) ^ result;
+    return(result / 4294967295.0);
+}
+
+float random_value_normal_distribution(ivec2 texel, float time) {
+    float theta = 2 * 3.1415926 * gold_noise(texel, time);
+    float rho = sqrt(-2 * log(gold_noise(texel, time)));
+    return(rho * cos(theta));
+}
+
+vec3 random_direction(ivec2 texel, float time) {
+    float x = random_value_normal_distribution(texel, time + 0.1);
+    float y = random_value_normal_distribution(texel, time + 0.2);
+    float z = random_value_normal_distribution(texel, time + 0.3);
+    return(normalize(vec3(x, y, z)));
+}
+
+// vec3 jitter(vec3 d, float phi, float sina, float cosa) {
+// 	vec3 w = normalize(d), u = normalize(cross(w.yzx, w)), v = cross(w, u);
+// 	return (u*cos(phi) + v*sin(phi)) * sina + w * cosa;
+// }
+
+// float rand(float seed) { return fract(sin(seed++)*43758.5453123); }
+
+
 
 
 // function definition
@@ -142,99 +221,115 @@ void main() {
 
     // color vector
     vec3 void_color = srgb_to_rgb(vec3(0.5, 0.5, 1.0));
-    vec3 color = vec3(0.0, 0.0, 0.0);
+    vec3 color = vec3(1.0, 1.0, 1.0);
     
     vec3 origin = eye;
     vec3 direction = camera_ray_direction(position.xy, inverse_view_projection);
 
-    hit_t primary_hit = calculate_ray(origin, direction, false);
+    hit_t hit;
+    vec3 light = vec3(0);
 
-    if (!primary_hit.exists) {
-        imageStore(img_output, texel_coord, vec4(void_color, 1.0));
-        return;
+    for (int i = 0; i < int(bounces); i++) {
+        hit = calculate_ray(origin, direction, false);
+
+        if (!hit.exists) {
+            break;
+        }
+
+        origin = vec3(hit.pos + hit.normal * 0.001);
+
+        direction = (vec3(n8rand(position, time), n8rand(position + 0.1, time), n8rand(position + 0.2, time)) - 0.5) * 2;
+        // direction = normalize(direction - 2 * hit.normal * dot(direction, hit.normal));
+
+        if (dot(direction, hit.normal) < 0) {
+            direction = -direction;
+        }
+
+        if (hit.index == 2 && hit.primitive == TRIANGLE) {
+            light += 1.0 * color;
+        }
+
+        color *= get_color(hit);
     }
 
-    color = get_color(primary_hit);
 
-    float t;
-    if (primary_hit.primitive == SPHERE) {
-        t = 0.1;
-    } else {
-        t = 0.00001;
-    }
 
-    // REFLECTION PASS
-    hit_t reflection_hit = primary_hit;
 
-    // for (int i = 0; i < 1; i++) {
-    //     origin = reflection_hit.pos + reflection_hit.normal * t;
-    //     direction = normalize(direction - 2 * reflection_hit.normal * dot(direction, reflection_hit.normal));
+    // hit_t primary_hit = calculate_ray(origin, direction, false);
 
-    //     reflection_hit = calculate_ray(origin, direction, false);
-
-    //     if (reflection_hit.exists) {
-    //         vec3 reflect_color = vec3(1.0, 1.0, 1.0);
-    //         vec3 light_position = vec4(light_model * vec4(0, 0, 0, 1)).xyz;
-    //         origin = reflection_hit.pos + reflection_hit.normal * t;
-    //         direction = normalize(light_position - origin);
-
-    //         hit_t reflection_shadow_hit = calculate_shadow_ray(origin, direction, light_position);
-
-    //         if (reflection_shadow_hit.exists) {
-    //             reflect_color = get_color(reflection_hit) * 0.5;
-
-    //         } else {
-    //             reflect_color = get_color(reflection_hit);
-    //         }
-
-    //         color = mix(color, color * reflect_color, get_shininess(primary_hit));  
-
-    //     } else {
-    //         color = mix(color, color * srgb_to_rgb(void_color) * 0.5, get_shininess(primary_hit));
-    //         break;
-    //     }
+    // if (!primary_hit.exists) {
+    //     imageStore(img_output, texel_coord, vec4(void_color, 1.0));
+    //     return;
     // }
 
-    // SHADOW PASS
-    
-    origin = vec3(primary_hit.pos + primary_hit.normal * t);
-    // point light:
-    // vec3 light_position = vec4(light_model * vec4(0, 0, 0, 1)).xyz;
-    // direction = normalize(light_position - origin);
+    // color = get_color(primary_hit);
 
-    // direction = normalize(vec3(rand(time), rand(time), rand(time)));
-    // direction = normalize(hash3((random * position.x * position.y - 0.5) * 2));
-    direction = normalize(vec3((rand(random_1 + position.x + position.y) - 0.5) * 2, (rand(random_2 + position.x + position.y) - 0.5) * 2, (rand(random_3 + position.x + position.y) - 0.5) * 2));
+    // float t;
+    // if (primary_hit.primitive == SPHERE) {
+    //     t = 0.1;
+    // } else {
+    //     t = 0.00001;
+    // }
+
+    // // REFLECTION PASS
+    // hit_t reflection_hit = primary_hit;
+
+    // // for (int i = 0; i < 1; i++) {
+    // //     origin = reflection_hit.pos + reflection_hit.normal * t;
+    // //     direction = normalize(direction - 2 * reflection_hit.normal * dot(direction, reflection_hit.normal));
+
+    // //     reflection_hit = calculate_ray(origin, direction, false);
+
+    // //     if (reflection_hit.exists) {
+    // //         vec3 reflect_color = vec3(1.0, 1.0, 1.0);
+    // //         vec3 light_position = vec4(light_model * vec4(0, 0, 0, 1)).xyz;
+    // //         origin = reflection_hit.pos + reflection_hit.normal * t;
+    // //         direction = normalize(light_position - origin);
+
+    // //         hit_t reflection_shadow_hit = calculate_shadow_ray(origin, direction, light_position);
+
+    // //         if (reflection_shadow_hit.exists) {
+    // //             reflect_color = get_color(reflection_hit) * 0.5;
+
+    // //         } else {
+    // //             reflect_color = get_color(reflection_hit);
+    // //         }
+
+    // //         color = mix(color, color * reflect_color, get_shininess(primary_hit));  
+
+    // //     } else {
+    // //         color = mix(color, color * srgb_to_rgb(void_color) * 0.5, get_shininess(primary_hit));
+    // //         break;
+    // //     }
+    // // }
+
+    // // SHADOW PASS
+    
+    // origin = vec3(primary_hit.pos + primary_hit.normal * t);
+
+    // // float seed = time + dims.y * texel_coord.x / dims.x + texel_coord.y / dims.y;
+
+    // // point light:
+    // // vec3 light_position = vec4(light_model * vec4(0, 0, 0, 1)).xyz;
+    // // direction = normalize(light_position - origin);
+
+    // // direction = normalize(vec3(rand(time), rand(time), rand(time)));
+    // // direction = normalize(hash3((random * position.x * position.y - 0.5) * 2));
+
+    // direction = (vec3(n8rand(position, time), n8rand(position + 0.1, time), n8rand(position + 0.2, time)) - 0.5) * 2;
 
     // if (dot(direction, primary_hit.normal) < 0) {
     //     direction = -direction;
     // }
     
-    hit_t light_hit = calculate_ray(origin, direction, false);
-
-    color += get_color(light_hit) * 0.5;
-
-    origin = vec3(light_hit.pos + light_hit.normal * t);
-    direction = normalize(vec3((rand(random_1 + position.x + position.y) - 0.5) * 2, (rand(random_2 + position.x + position.y) - 0.5) * 2, (rand(random_3 + position.x + position.y) - 0.5) * 2));
-
-    light_hit = calculate_ray(origin, direction, false);
+    // hit_t light_hit = calculate_ray(origin, direction, false);
 
 
-
-
-    // hit_t shadow_hit = calculate_shadow_ray(origin, direction, light_position);
-
-    // if ((shadow_hit.exists && shadow_hit.primitive != TRIANGLE) || (shadow_hit.exists && shadow_hit.primitive != TRIANGLE && shadow_hit.index != 2)) {
+    // if (light_hit.exists && light_hit.primitive == TRIANGLE && light_hit.index == 2) {
+    //     color *= dot(direction, primary_hit.normal);
+    // } else {
     //     color *= 0.0;
     // }
-
-
-
-    if (light_hit.exists && light_hit.primitive == TRIANGLE && light_hit.index == 2) {
-
-    } else {
-        color *= 0.0;
-    }
 
     // if (shadow_hit.exists && shadow_hit.primitive != TRIANGLE shadow_hit.index == 2) {
        
@@ -248,10 +343,30 @@ void main() {
     //     color = color * map(dot(direction, primary_hit.normal), -1.0, 1.0, -1.0, 1.0);;
     // }
 
-    imageStore(img_output, texel_coord, vec4(rgb_to_srgb(color), 1.0));
+    imageStore(img_output, texel_coord, vec4(rgb_to_srgb(light), 1.0));
     // imageStore(img_output, texel_coord, vec4(vec3(hash3(random * position.x * position.y)), 1.0));
     // imageStore(img_output, texel_coord, vec4(direction, 1.0));
     // imageStore(img_output, texel_coord, vec4(random_1, random_2, random_3, 1.0));
+
+    
+    // float r = random_value(rng_state);
+    // float g = random_value(rng_state);
+    // float b = random_value(rng_state);
+
+    // ivec2 pixel_coord = ivec2(position * dims);
+    // int pixel_index = pixel_coord.y * dims.x + pixel_coord.x;
+    // int rng_state = pixel_index;
+
+    // // float r = xorshf32(uint(rng_state + 1)) / pow(2, 32);
+    // // float g = xorshf32(uint(rng_state + 2)) / pow(2, 32);
+    // // float b = xorshf32(uint(rng_state + 3)) / pow(2, 32);
+
+    // float r = n8rand(position, time);
+    // float g = n8rand(position + 0.1, time);
+    // float b = n8rand(position + 0.2, time);
+
+    // imageStore(img_output, texel_coord, vec4(r, g, b, 1.0));
+    // imageStore(img_output, texel_coord, vec4(vec3(time), 1.0));
 }
 
 

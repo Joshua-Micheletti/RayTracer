@@ -114,6 +114,12 @@ class Controller:
         if symbol == glfw.KEY_ESCAPE:
             glfw.set_window_should_close(window, 1)
 
+        if symbol == glfw.KEY_KP_SUBTRACT:
+            Renderer.getInstance().bounces = Renderer.getInstance().bounces - 1
+        
+        if symbol == glfw.KEY_KP_ADD:
+            Renderer.getInstance().bounces = Renderer.getInstance().bounces + 1
+
         if symbol == glfw.KEY_R and self.states["accumulate"] == False:
             self.states["accumulate"] = True
         elif symbol == glfw.KEY_R and self.states["accumulate"] == True:

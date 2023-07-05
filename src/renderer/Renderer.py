@@ -77,6 +77,9 @@ class Renderer:
         self.swap = glGenBuffers(1)
         self.bounding_boxes = glGenBuffers(1)
 
+        self.render_x = 1280
+        self.render_y = 720
+
 
         self.camera = Camera.getInstance()
 
@@ -119,7 +122,7 @@ class Renderer:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, 384, 216)
+        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, self.render_x, self.render_y)
         glBindImageTexture(0, self.texture, 1, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F)
 
         self.last_frame = 0
@@ -130,12 +133,14 @@ class Renderer:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, 384, 216)
+        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, self.render_x, self.render_y)
         glBindImageTexture(0, self.last_frame, 1, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F)
 
         self.screen_shader = Shader("../shaders/screen_vertex.glsl", "../shaders/screen_fragment.glsl")
 
         self.rendered_frames = 0
+
+        self.bounces = 2
 
 
     def render(self):
@@ -154,10 +159,13 @@ class Renderer:
         glUniform1f(glGetUniformLocation(self.program_id, "random_1"), random.random())
         glUniform1f(glGetUniformLocation(self.program_id, "random_2"), random.random())
         glUniform1f(glGetUniformLocation(self.program_id, "random_3"), random.random())
+        glUniform1f(glGetUniformLocation(self.program_id, "time"), float(time.time() % 1))
+        glUniform1f(glGetUniformLocation(self.program_id, "bounces"), float(self.bounces))
+        print(float(time.time() % 1))
         # print(time.time() / 100000000)
-        print(random.random())
+        # print(random.random())
 
-        glDispatchCompute(int(384 / 8), int(216 / 4), 1)
+        glDispatchCompute(int(self.render_x / 8), int(self.render_y / 4), 1)
         glMemoryBarrier(GL_ALL_BARRIER_BITS)
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -174,7 +182,7 @@ class Renderer:
         self.rendered_frames += 1
 
         glBindTexture(GL_TEXTURE_2D, self.last_frame)
-        glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 384, 216)
+        glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, self.render_x, self.render_y)
 
         # glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,)
         # glCopyImageSubData(self.texture, GL_TEXTURE_2D, 0, 0, 0, 0, self.last_frame, GL_TEXTURE_2D, 0, 0, 0, 0, 384, 216, 1)
@@ -284,7 +292,7 @@ class Renderer:
 
 
     def reset_accumulation(self):
-        glCopyImageSubData(self.texture, GL_TEXTURE_2D, 0, 0, 0, 0, self.last_frame, GL_TEXTURE_2D, 0, 0, 0, 0, 384, 216, 1)
+        glCopyImageSubData(self.texture, GL_TEXTURE_2D, 0, 0, 0, 0, self.last_frame, GL_TEXTURE_2D, 0, 0, 0, 0, self.render_x, self.render_y, 1)
         self.rendered_frames = 0
 
 
