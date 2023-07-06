@@ -27,7 +27,7 @@ class Camera:
         self.yaw = -90.0
         self.pitch = 0
 
-        self.projection_matrix = Matrix44.perspective_projection(45, 192 / 108, 0.1, 10)
+        self.projection_matrix = Matrix44.perspective_projection(45, 192 / 108, 0.1, 1)
         # self.projection_matrix = Matrix44.orthogonal_projection(-200, 200, -160, 160, -1, 1)
 
         self.update_camera_vectors()
@@ -73,7 +73,6 @@ class Camera:
         fy = math.sin(math.radians(self.pitch))
         fz = math.sin(math.radians(self.yaw)) * math.cos(math.radians(self.pitch))
         self.front = normalize(np.array([fx, fy, fz]))
-
         self.right = normalize(np.cross(self.front, self.world_up))
         self.up = np.cross(self.right, self.front)
 

@@ -13,16 +13,23 @@ def main():
     controller = Controller.getInstance()
     renderer = Renderer.getInstance()
     data = Data.getInstance()
-
-    data.load_material(1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0)
-    data.load_material(0.2, 1.0, 0.2, 0.0, 0.0, 0.0, 1.0, 0.0)
-    data.load_material(1.0, 0.2, 0.2, 0.0, 0.0, 0.0, 1.0, 0.0)
-    data.load_material(0.5, 0.5, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0)
-    data.load_material(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 0.5)
-    data.load_material(0.0, 0.0, 0.0, 0.2, 1.0, 0.2, 2.0, 0.5)
-    data.load_material(0.0, 0.0, 0.0, 1.0, 0.2, 0.2, 2.0, 0.5)
-    data.load_material(0.0, 0.0, 0.0, 0.2, 0.2, 1.0, 2.0, 0.5)
-    data.load_material(1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0)
+    #                  color (r,g,b)  emission(rgb)  e_p shine albedo(r,g,b)  albedo
+    data.load_material(1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0) # 0 white opaque
+    data.load_material(1.0, 0.2, 0.2, 0.0, 0.0, 0.0, 1.0, 0.2, 1.0, 0.2, 0.2, 1.0) # 1 red 0.2 shine
+    data.load_material(0.2, 1.0, 0.2, 0.0, 0.0, 0.0, 1.0, 0.4, 0.2, 1.0, 0.2, 1.0) # 2 green 0.4 shine
+    data.load_material(0.2, 0.2, 1.0, 0.0, 0.0, 0.0, 1.0, 0.6, 0.2, 0.2, 1.0, 1.0) # 3 blue 0.6 shine
+    data.load_material(1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 2.0, 0.8, 1.0, 1.0, 1.0, 1.0) # 4 white 0.8 shine
+    data.load_material(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 1.0, 1.0, 1.0, 1.0, 1.0) # 5 white 1.0 shine
+    data.load_material(1.0, 0.2, 0.2, 0.0, 0.0, 0.0, 3.0, 0.5, 1.0, 1.0, 1.0, 0.2) # 6 red shiny albedo 20%
+    data.load_material(0.2, 1.0, 0.2, 0.0, 0.0, 0.0, 3.0, 1.0, 1.0, 1.0, 1.0, 0.5) # 7 green shiny albedo 50%
+    data.load_material(0.2, 0.2, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0) # 8 blue shiny albedo 100%
+    data.load_material(1.0, 1.0, 1.0, 1.0, 0.2, 0.2, 1.0, 0.5, 1.0, 1.0, 1.0, 0.0) # 9 emissive red
+    data.load_material(1.0, 1.0, 1.0, 0.2, 1.0, 0.2, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0) # 10 emissive blue
+    data.load_material(1.0, 0.2, 0.2, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0) # 11 red
+    data.load_material(0.2, 0.2, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0) # 12 blue
+    data.load_material(0.2, 1.0, 0.2, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0) # 13 green
+    data.load_material(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 0.5, 1.0, 1.0, 1.0, 0.0) # 14 emissive white
+    
 
     gally = Model("../models/box.obj")
     tree = Model("../models/tree.obj")
@@ -32,23 +39,39 @@ def main():
     tree.move(0, 0, 0)
     gally.move(5, 1, 0)
     gally.scale(0.1, 0.1, 0.1)
-    box.scale(0.5, 0.5, 0.5)
-    box.move(0, 1, 0)
+    box.scale(0.4, 0.4, 0.4)
+    box.move(-0.5, 2.30, 0)
 
-    data.load_model(gally, 0)
-    data.load_model(tree)
-    data.load_model(box, 4)
+    # data.load_model(gally, 0)
+    # data.load_model(tree, 10)
+    data.load_model(box, 14)
 
     # data.set_color(0, 1.0, 1.0, 1.0, 1.0)
     # data.set_color(1, 1.0, 1.0, 0.5, 1.0)
     # data.set_color(2, 1.0, 1.0, 1.0, 1.0)
 
-    data.load_sphere(0.0, -1, 0.0, 0.5, 8)
+    # data.load_sphere(0.0, 0.25, 0.0, 0.25)
+    # data.load_sphere(0.0, 0.25, -0.75, 0.25, 9)
+    # data.load_sphere(0.0, 0.25, 0.75, 0.25, 10)
+    data.load_sphere(-0.80, 1, -0.80, 0.15, 0)
+    data.load_sphere(-0.80, 1, -0.40, 0.15, 1)
+    data.load_sphere(-0.80, 1, 0.0, 0.15, 2)
+    data.load_sphere(-0.80, 1, 0.40, 0.15, 3)
+    data.load_sphere(-0.80, 1, 0.80, 0.15, 4)
+    data.load_sphere(-0.40, 0.5, -0.80, 0.15, 5)
+    data.load_sphere(-0.40, 0.5, -0.40, 0.15, 6)
+    data.load_sphere(-0.40, 0.5, 0.0, 0.15, 7)
+    data.load_sphere(-0.40, 0.5, 0.40, 0.15, 8)
+    data.load_sphere(-0.40, 0.5, 0.80, 0.15, 9)
+    data.load_sphere(-0.60, 0.75, 0.0, 0.15, 10)
+    # data.load_sphere(-50, 50, -0.0, 10, 4)
+    # data.load_sphere(-0.80, 1,  0.40, 0.15, 8)
+    # data.load_sphere(-0.80, 1,  0.80, 0.15, 8)
     # data.load_sphere(-1, 0.5, -3, 0.5, 1.0, 1.0, 1.0, 1.0)
 
-    data.load_plane(0, 0, 0, 0, 1, 0, 5)
-    data.load_plane(0, 0, 1, 0, 0, -1, 6)
-    data.load_plane(0, 0, -1, 0, 0, 1, 7)
+    data.load_plane(0, 0, 0, 0, 1, 0, 13)
+    data.load_plane(0, 0, 1, 0, 0, -1, 12)
+    data.load_plane(0, 0, -1, 0, 0, 1, 11)
     data.load_plane(-1, 0, 0, 1, 0, 0)
     data.load_plane(1, 0, 0, -1, 0, 0)
     data.load_plane(0, 2, 0, 0, -1, 0)
@@ -73,6 +96,8 @@ def main():
         print(f"Total: {dt * 1000}")
         print(f"FPS: {1 / (dt)}")
         print(f"Render: {renderer.render_time * 1000}")
+        print(f"Samples: {renderer.rendered_frames}")
+        print(f"Bounces: {renderer.bounces}")
         
     glfw.terminate()
     

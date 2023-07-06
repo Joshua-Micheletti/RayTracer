@@ -47,6 +47,8 @@ class Controller:
 
         self.states["accumulate"] = False
 
+        self.states["denoise"] = False
+
         self.player_movement_speed = 1000
         self.player_jumping_strength = 1000
         self.camera_movement_speed = 40
@@ -119,6 +121,18 @@ class Controller:
         
         if symbol == glfw.KEY_KP_ADD:
             Renderer.getInstance().bounces = Renderer.getInstance().bounces + 1
+
+        if symbol == glfw.KEY_I:
+            Renderer.getInstance().far_plane = Renderer.getInstance().far_plane + 0.01
+        if symbol == glfw.KEY_K:
+            Renderer.getInstance().far_plane = Renderer.getInstance().far_plane - 0.01
+
+        if symbol == glfw.KEY_P and self.states["denoise"] == False:
+            Renderer.getInstance().denoise = 1
+            self.states["denoise"] = True
+        elif symbol == glfw.KEY_P and self.states["denoise"] == True:
+            Renderer.getInstance().denoise = 0
+            self.states["denoise"] = False
 
         if symbol == glfw.KEY_R and self.states["accumulate"] == False:
             self.states["accumulate"] = True

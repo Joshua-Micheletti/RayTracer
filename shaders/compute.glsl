@@ -18,50 +18,36 @@ layout (std140, binding = 2) uniform model {
 layout (binding = 3) uniform index {
     float[100] indices;
 };
-layout (binding = 4) uniform color {
-    float[100] mesh_materials;
-};
-layout (binding = 5) uniform normal {
+layout (binding = 4) uniform normal {
     float[100] mesh_normals;
 };
-layout (binding = 6) uniform sphere {
+layout (binding = 5) uniform sphere {
     float[100] spheres;
 };
-layout (binding = 7) uniform sphere_color {
-    float[100] sphere_materials;
-};
-layout (binding = 8) uniform plane {
+layout (binding = 6) uniform plane {
     float[100] planes;
 };
-layout (binding = 9) uniform plane_color {
-    float[100] plane_materials;
-};
-layout (binding = 10) uniform box {
+layout (binding = 7) uniform box {
     float[100] boxes;
 };
-layout (binding = 11) uniform box_color {
-    float[100] box_materials;
-};
-layout (binding = 12) uniform bounding_box {
+layout (binding = 8) uniform bounding_box {
     float[100] bounding_boxes;
 };
-layout (binding = 13) uniform material {
+layout (binding = 9) uniform material {
     float[100] materials;
 };
-layout (binding = 14) uniform mesh_material_index {
+layout (binding = 10) uniform mesh_material_index {
     float[100] mesh_material_indices;
 };
 
 // uniforms
 uniform mat4 inverse_view_projection;
 uniform vec3 eye;
-uniform float light_index;
-uniform mat4 light_model;
-uniform float random_1;
-uniform float random_2;
-uniform float random_3;
 uniform float time;
 uniform float bounces;
+uniform vec3 camera_up;
+uniform vec3 camera_right;
+uniform vec3 camera_forward;
 
 // constants
 // ------------------------------------------------------- //
@@ -71,7 +57,10 @@ uniform float bounces;
 #define BOX 3
 
 #define SHINE_OFFSET 3
-#define MATERIAL_SIZE 8
+#define MATERIAL_SIZE 12
+
+const float c_pi = 3.14159265359f;
+const float c_twopi = 2.0f * c_pi;
 
 const float HCV_EPSILON = 1e-10;
 const float HSL_EPSILON = 1e-10;
@@ -99,10 +88,10 @@ struct hit_t {
 
 // utils
 float map(float, float, float, float, float);
-float rand(float);
-float rand(vec2);
-vec3 hash3(float);
-
+float random(inout uint);
+vec3 random_unit_vector(inout uint);
+vec2 random_point_circle(inout uint);
+uint wang_hash(inout uint seed);
 
 // color correction
 float linear_to_srgb(float);
@@ -112,9 +101,9 @@ vec3 srgb_to_rgb(vec3);
 
 // material functions
 vec3 get_color(hit_t);
-float get_shininess(hit_t);
 vec4 get_emission(hit_t);
 float get_smoothness(hit_t);
+vec4 get_albedo(hit_t);
 
 // ray calculation
 hit_t calculate_ray(vec3, vec3, bool);
@@ -139,83 +128,6 @@ hit_t calculate_planes(vec3, vec3, bool, float);
 hit_t ray_box_collision(vec3, vec3, vec3, vec3);
 hit_t calculate_boxes(vec3, vec3, bool, float);
 
-const float PHI = 1.61803398874989484820459; // Φ = Golden Ratio 
-
-float gold_noise(in vec2 xy, in float seed) {
-    return fract(tan(distance(xy*PHI, xy)*seed)*xy.x);
-}
-
-vec3 polar_to_cartesian(vec3 polar) {
-    return(vec3(polar.x * sin(polar.z) * cos(polar.y), polar.x * sin(polar.z) * sin(polar.y), polar.x * cos(polar.z)));
-}
-
-uint xorshf32(uint state) { 
-     // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs". 
-    uint x = state; 
-    x ^= x << 13; 
-    x ^= x >> 17; 
-    x ^= x << 5; 
-    return x; 
-}
-
-
-float nrand( vec2 n )
-{
-	return fract(sin(dot(n.xy, vec2(12.9898, 78.233)))* 43758.5453);
-}
-
-
-
-float n8rand( vec2 n, float time)
-{
-	float t = time;
-	float nrnd0 = nrand( n + 0.07*t );
-	float nrnd1 = nrand( n + 0.11*t );	
-	float nrnd2 = nrand( n + 0.13*t );
-	float nrnd3 = nrand( n + 0.17*t );
-    
-    float nrnd4 = nrand( n + 0.19*t );
-    float nrnd5 = nrand( n + 0.23*t );
-    float nrnd6 = nrand( n + 0.29*t );
-    float nrnd7 = nrand( n + 0.31*t );
-    
-	return (nrnd0+nrnd1+nrnd2+nrnd3 +nrnd4+nrnd5+nrnd6+nrnd7) / 8.0;
-}
-
-
-
-
-
-
-float random_value(inout int state) {
-    state = state * 747796405 + 2891336453;
-    int result = ((state >> ((state >> 28) + 4)) ^ state) * 277803737;
-    result = (result >> 22) ^ result;
-    return(result / 4294967295.0);
-}
-
-float random_value_normal_distribution(ivec2 texel, float time) {
-    float theta = 2 * 3.1415926 * gold_noise(texel, time);
-    float rho = sqrt(-2 * log(gold_noise(texel, time)));
-    return(rho * cos(theta));
-}
-
-vec3 random_direction(ivec2 texel, float time) {
-    float x = random_value_normal_distribution(texel, time + 0.1);
-    float y = random_value_normal_distribution(texel, time + 0.2);
-    float z = random_value_normal_distribution(texel, time + 0.3);
-    return(normalize(vec3(x, y, z)));
-}
-
-// vec3 jitter(vec3 d, float phi, float sina, float cosa) {
-// 	vec3 w = normalize(d), u = normalize(cross(w.yzx, w)), v = cross(w, u);
-// 	return (u*cos(phi) + v*sin(phi)) * sina + w * cosa;
-// }
-
-// float rand(float seed) { return fract(sin(seed++)*43758.5453123); }
-
-
-
 
 // function definition
 // ------------------------------------------------------- //
@@ -228,12 +140,15 @@ void main() {
     position.x = (float(texel_coord.x * 2 - dims.x) / dims.x);
     position.y = (float(texel_coord.y * 2 - dims.y) / dims.y);
 
+    uint rng_state = uint(uint(texel_coord.x) * uint(1973) + uint(texel_coord.y) * uint(9277) + uint(time * 1000) * uint(26699)) | uint(1);
+    vec2 jitter = random_point_circle(rng_state) / dims.x;
+
     // color vector
     vec3 void_color = srgb_to_rgb(vec3(0.5, 0.5, 1.0));
     vec3 color = vec3(1.0, 1.0, 1.0);
-    
+
     vec3 origin = eye;
-    vec3 direction = camera_ray_direction(position.xy, inverse_view_projection);
+    vec3 direction = camera_ray_direction(position.xy + jitter, inverse_view_projection);
 
     hit_t hit;
     vec3 light = vec3(0);
@@ -247,20 +162,27 @@ void main() {
 
         origin = vec3(hit.pos + hit.normal * 0.001);
 
-        vec3 diffuse_direction = (vec3(n8rand(position, time), n8rand(position + 0.1, time), n8rand(position + 0.2, time)) - 0.5) * 2;
+        vec3 diffuse_direction = normalize(hit.normal + random_unit_vector(rng_state));
         vec3 specular_direction = normalize(direction - 2 * hit.normal * dot(direction, hit.normal));
 
-        direction = mix(diffuse_direction, specular_direction, get_smoothness(hit));
+        vec4 specular = get_albedo(hit);
+
+        bool albedo_chance = specular.w >= random(rng_state);
+
+        direction = mix(diffuse_direction, specular_direction, get_smoothness(hit) * int(albedo_chance));
 
         if (dot(direction, hit.normal) < 0) {
             direction = -direction;
         }
+
+        float light_strength = dot(hit.normal, direction);
+
         vec4 emission = get_emission(hit);
         vec3 emitted_light = emission.xyz * emission.w;
 
         light += emitted_light * color;
 
-        color *= get_color(hit);
+        color *= mix(get_color(hit), specular.xyz, albedo_chance) * light_strength;
     }
 
 
@@ -355,29 +277,6 @@ void main() {
     // }
 
     imageStore(img_output, texel_coord, vec4(rgb_to_srgb(light), 1.0));
-    // imageStore(img_output, texel_coord, vec4(vec3(hash3(random * position.x * position.y)), 1.0));
-    // imageStore(img_output, texel_coord, vec4(direction, 1.0));
-    // imageStore(img_output, texel_coord, vec4(random_1, random_2, random_3, 1.0));
-
-    
-    // float r = random_value(rng_state);
-    // float g = random_value(rng_state);
-    // float b = random_value(rng_state);
-
-    // ivec2 pixel_coord = ivec2(position * dims);
-    // int pixel_index = pixel_coord.y * dims.x + pixel_coord.x;
-    // int rng_state = pixel_index;
-
-    // // float r = xorshf32(uint(rng_state + 1)) / pow(2, 32);
-    // // float g = xorshf32(uint(rng_state + 2)) / pow(2, 32);
-    // // float b = xorshf32(uint(rng_state + 3)) / pow(2, 32);
-
-    // float r = n8rand(position, time);
-    // float g = n8rand(position + 0.1, time);
-    // float b = n8rand(position + 0.2, time);
-
-    // imageStore(img_output, texel_coord, vec4(r, g, b, 1.0));
-    // imageStore(img_output, texel_coord, vec4(vec3(time), 1.0));
 }
 
 
@@ -463,22 +362,17 @@ float get_smoothness(hit_t target) {
     return(smoothness);
 }
 
-float get_shininess(hit_t target) {
-    float shininess = 0;
+vec4 get_albedo(hit_t target) {
+    vec4 albedo = vec4(0);
 
     if (target.primitive == TRIANGLE) {
-        shininess = mesh_materials  [target.index * MATERIAL_SIZE + SHINE_OFFSET];
-    } else if (target.primitive == SPHERE) {
-        shininess = sphere_materials[target.index * MATERIAL_SIZE + SHINE_OFFSET];
-    } else if (target.primitive == PLANE) {
-        shininess = plane_materials [target.index * MATERIAL_SIZE + SHINE_OFFSET];
+        albedo = vec4(materials[int(mesh_material_indices[target.index]) * MATERIAL_SIZE + 8], materials[int(mesh_material_indices[target.index]) * MATERIAL_SIZE + 9], materials[int(mesh_material_indices[target.index]) * MATERIAL_SIZE + 10], materials[int(mesh_material_indices[target.index]) * MATERIAL_SIZE + 11]);
     } else {
-        shininess = box_materials   [target.index * MATERIAL_SIZE + SHINE_OFFSET];
+        albedo = vec4(materials[target.material_index * MATERIAL_SIZE + 8], materials[target.material_index * MATERIAL_SIZE + 9], materials[target.material_index * MATERIAL_SIZE + 10], materials[target.material_index * MATERIAL_SIZE + 11]);
     }
 
-    return(shininess);
+    return(albedo);
 }
-
 
 vec3 camera_ray_direction(vec2 pixel, mat4 inverseVP) {
     // coordinate of end ray in screen space
@@ -496,13 +390,32 @@ vec3 camera_ray_direction(vec2 pixel, mat4 inverseVP) {
     return(normalize(far.xyz - near.xyz));
 }
 
+uint wang_hash(inout uint seed) {
+    seed = uint(seed ^ uint(61)) ^ uint(seed >> uint(16));
+    seed *= uint(9);
+    seed = seed ^ (seed >> 4);
+    seed *= uint(0x27d4eb2d);
+    seed = seed ^ (seed >> 15);
+    return seed;
+}
 
-float rand(float co) { return fract(sin(co*(91.3458)) * 47453.5453); }
-float rand(vec2 co){ return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453); }
-float rand(vec3 co){ return rand(co.xy+rand(co.z)); }
+float random(inout uint state) {
+    return float(wang_hash(state)) / 4294967296.0;
+}
 
-vec3 hash3(float seed) {
-    return fract(sin(vec3(seed+=0.1,seed+=0.1,seed+=0.1))*vec3(43758.5453123,22578.1459123,19642.3490423));
+vec3 random_unit_vector(inout uint state) {
+    float z = random(state) * 2.0f - 1.0f;
+    float a = random(state) * c_twopi;
+    float r = sqrt(1.0f - z * z);
+    float x = r * cos(a);
+    float y = r * sin(a);
+    return vec3(x, y, z);
+}
+
+vec2 random_point_circle(inout uint state) {
+    float angle = random(state) * 2 * c_pi;
+    vec2 point_on_circle = vec2(cos(angle), sin(angle));
+    return(point_on_circle * sqrt(random(state)));
 }
 
 
@@ -772,12 +685,6 @@ hit_t calculate_triangles(vec3 ray_origin, vec3 ray_direction, bool shadow, floa
             vertex_index = 0;
             model_index += 1;
             skip = false;
-        }
-
-        if (shadow) {
-            if (model_index == light_index) {
-                break;
-            }
         }
 
         if (vertex_index == 0) {

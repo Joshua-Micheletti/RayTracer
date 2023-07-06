@@ -91,8 +91,8 @@ class Data:
         # Renderer.getInstance().update_boxes_colors(self.boxes_colors)
 
 
-    def load_material(self, color_r, color_g, color_b, e_color_r, e_color_g, e_color_b, e_color_s, smoothness):
-        self.materials = np.append(self.materials, np.array([color_r, color_g, color_b, e_color_r, e_color_g, e_color_b, e_color_s, smoothness]))
+    def load_material(self, color_r, color_g, color_b, e_color_r, e_color_g, e_color_b, e_color_s, smoothness, specular_r, specular_g, specular_b, albedo):
+        self.materials = np.append(self.materials, np.array([color_r, color_g, color_b, e_color_r, e_color_g, e_color_b, e_color_s, smoothness, specular_r, specular_g, specular_b, albedo]))
         Renderer.getInstance().update_materials(self.materials)
 
 
