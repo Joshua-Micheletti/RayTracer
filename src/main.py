@@ -31,20 +31,20 @@ def main():
     data.load_material(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 0.5, 1.0, 1.0, 1.0, 0.0) # 14 emissive white
     
 
-    gally = Model("../models/box.obj")
+    gally = Model("../models/gally.obj")
     tree = Model("../models/tree.obj")
     box = Model("../models/box.obj")
 
     tree.scale(0.04, 0.04, 0.04)
     tree.move(0, 0, 0)
-    gally.move(5, 1, 0)
+    gally.move(0, 0.5, 0)
     gally.scale(0.1, 0.1, 0.1)
     box.scale(0.4, 0.4, 0.4)
     box.move(-0.5, 2.30, 0)
 
     # data.load_model(gally, 0)
     # data.load_model(tree, 10)
-    data.load_model(box, 14)
+    # data.load_model(box, 14)
 
     # data.set_color(0, 1.0, 1.0, 1.0, 1.0)
     # data.set_color(1, 1.0, 1.0, 0.5, 1.0)
@@ -64,6 +64,7 @@ def main():
     data.load_sphere(-0.40, 0.5, 0.40, 0.15, 8)
     data.load_sphere(-0.40, 0.5, 0.80, 0.15, 9)
     data.load_sphere(-0.60, 0.75, 0.0, 0.15, 10)
+    data.load_sphere(0, 3.95, 0, 2, 14)
     # data.load_sphere(-50, 50, -0.0, 10, 4)
     # data.load_sphere(-0.80, 1,  0.40, 0.15, 8)
     # data.load_sphere(-0.80, 1,  0.80, 0.15, 8)

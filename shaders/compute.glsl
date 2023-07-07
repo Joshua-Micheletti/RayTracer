@@ -8,36 +8,38 @@ layout (local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
 // texture to write to
 layout (rgba32f, binding = 0) uniform image2D img_output;
 
+#define SIZE 60
+
 // SSBOs and UBOs
 layout (std430, binding = 1) buffer vertex { 
     float[] vertices;
 };
 layout (std140, binding = 2) uniform model {
-    mat4[100] model_mats;
+    mat4[SIZE] model_mats;
 };
 layout (binding = 3) uniform index {
-    float[100] indices;
+    float[SIZE] indices;
 };
 layout (binding = 4) uniform normal {
-    float[100] mesh_normals;
+    float[SIZE] mesh_normals;
 };
 layout (binding = 5) uniform sphere {
-    float[100] spheres;
+    float[SIZE] spheres;
 };
 layout (binding = 6) uniform plane {
-    float[100] planes;
+    float[SIZE] planes;
 };
 layout (binding = 7) uniform box {
-    float[100] boxes;
+    float[SIZE] boxes;
 };
 layout (binding = 8) uniform bounding_box {
-    float[100] bounding_boxes;
+    float[SIZE] bounding_boxes;
 };
 layout (binding = 9) uniform material {
-    float[100] materials;
+    float[SIZE] materials;
 };
 layout (binding = 10) uniform mesh_material_index {
-    float[100] mesh_material_indices;
+    float[SIZE] mesh_material_indices;
 };
 
 // uniforms
