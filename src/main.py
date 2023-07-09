@@ -29,6 +29,8 @@ def main():
     data.load_material(0.2, 0.2, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0) # 12 blue
     data.load_material(0.2, 1.0, 0.2, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0) # 13 green
     data.load_material(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 0.5, 1.0, 1.0, 1.0, 0.0) # 14 emissive white
+    data.load_material(124 / 255, 112 / 255, 208 / 255, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0) # 15 white opaque
+    # rgb(124, 112, 208)
     
 
     gally = Model("../models/gally.obj")
@@ -42,7 +44,7 @@ def main():
     box.scale(0.4, 0.4, 0.4)
     box.move(-0.5, 2.30, 0)
 
-    # data.load_model(gally, 0)
+    data.load_model(gally, 15)
     # data.load_model(tree, 10)
     # data.load_model(box, 14)
 
@@ -64,7 +66,7 @@ def main():
     data.load_sphere(-0.40, 0.5, 0.40, 0.15, 8)
     data.load_sphere(-0.40, 0.5, 0.80, 0.15, 9)
     data.load_sphere(-0.60, 0.75, 0.0, 0.15, 10)
-    data.load_sphere(0, 3.95, 0, 2, 14)
+    data.load_sphere(2, 3.0, 0, 2, 14)
     # data.load_sphere(-50, 50, -0.0, 10, 4)
     # data.load_sphere(-0.80, 1,  0.40, 0.15, 8)
     # data.load_sphere(-0.80, 1,  0.80, 0.15, 8)

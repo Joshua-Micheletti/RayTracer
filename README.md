@@ -1,0 +1,5 @@
+![alt text](https://github.com/Joshua-Micheletti/RayTracer/blob/main/img/materials.png?raw=true)
+![alt text](https://github.com/Joshua-Micheletti/RayTracer/blob/main/img/roughness.png?raw=true)
+![alt text](https://github.com/Joshua-Micheletti/RayTracer/blob/main/img/mesh.png?raw=true)
+![alt text](https://github.com/Joshua-Micheletti/RayTracer/blob/main/img/reflection.png?raw=true)
+![alt text](https://github.com/Joshua-Micheletti/RayTracer/blob/main/img/colorBlend.png?raw=true)
