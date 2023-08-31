@@ -25,7 +25,7 @@ class Window():
             return
 
         glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 4)
-        glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 6)
+        glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 5)
 
         self.window = glfw.create_window(width, height, name, None, None)
 

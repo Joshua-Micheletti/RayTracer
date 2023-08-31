@@ -8,7 +8,7 @@ from ctypes import *
 from Shader import Shader
 
 import time
-import win_precise_time as wpt
+# import win_precise_time as wpt
 
 import pywavefront
 
@@ -144,7 +144,7 @@ class Renderer:
 
 
     def render(self):
-        start = wpt.time()
+        start = time.time()
 
         for i in range(1):
             glActiveTexture(GL_TEXTURE0)
@@ -190,7 +190,7 @@ class Renderer:
 
     
 
-        end = wpt.time()
+        end = time.time()
         self.render_time = end - start
 
         

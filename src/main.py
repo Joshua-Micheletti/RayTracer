@@ -5,8 +5,8 @@ from model.Model import Model
 import glfw
 
 from renderer.Renderer import Renderer
-
-import win_precise_time as wpt
+import time
+# import win_precise_time as wpt
 
 def main():
     window = Window.getInstance()
@@ -85,7 +85,7 @@ def main():
     dt = 0
 
     while not glfw.window_should_close(window.window):
-        start = wpt.time()
+        start = time.time()
 
         controller.update(dt)
         data.update()
@@ -94,7 +94,7 @@ def main():
         glfw.swap_buffers(window.window)
         glfw.poll_events()
 
-        end = wpt.time()
+        end = time.time()
         dt = end - start
         print(f"Total: {dt * 1000}")
         print(f"FPS: {1 / (dt)}")
