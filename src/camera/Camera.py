@@ -1,21 +1,23 @@
-import numpy as np
 import math
-from pyrr import Matrix44, Vector3
+
+import numpy as np
 import pyrr
+from pyrr import Matrix44, Vector3
+
 
 class Camera:
     __instance = None
-    
+
     @staticmethod
     def getInstance():
         if Camera.__instance == None:
             Camera()
         return Camera.__instance
-    
+
     def __init__(self):
         if Camera.__instance != None:
             raise Exception("Window already exists!")
-        
+
         Camera.__instance = self
 
         self.position = np.array([0.0, 0.0, 0.0])
@@ -33,6 +35,7 @@ class Camera:
         self.update_camera_vectors()
 
         self.sensitivity = 0.1
+        self.changed = False
 
     def get_view_matrix(self):
         self.view_matrix = self.look_at(self.position, self.position + self.front, np.array([0, 1, 0]))
@@ -60,10 +63,8 @@ class Camera:
         self.yaw   += x * self.sensitivity
         self.pitch += y * self.sensitivity
 
-        if self.pitch > 89.0:
-            self.pitch = 89.0
-        if self.pitch < -89.0:
-            self.pitch = -89.0
+        self.pitch = min(self.pitch, 89.0)
+        self.pitch = max(self.pitch, -89.0)
 
         self.update_camera_vectors()
 
@@ -75,6 +76,8 @@ class Camera:
         self.front = normalize(np.array([fx, fy, fz]))
         self.right = normalize(np.cross(self.front, self.world_up))
         self.up = np.cross(self.right, self.front)
+        self.changed = True
+
 
     def look_at(self, position, target, world_up):
         pPosition = Vector3([position[0], position[1], position[2]])
@@ -109,7 +112,7 @@ def m3dLookAt(eye, target, up):
     my = normalize(np.cross( mz, mx ) )
     tx =  np.dot( mx, eye )
     ty =  np.dot( my, eye )
-    tz = -np.dot( mz, eye )   
+    tz = -np.dot( mz, eye )
     return np.array([mx[0], my[0], mz[0], 0, mx[1], my[1], mz[1], 0, mx[2], my[2], mz[2], 0, tx, ty, tz, 1])
 
 def normalize(vector):

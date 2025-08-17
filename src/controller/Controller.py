@@ -1,29 +1,31 @@
-import glfw
 import time
-from renderer.Renderer import Renderer
+
+import glfw
+
 from camera.Camera import Camera
 from data.Data import Data
+from renderer import Renderer
 
 first_mouse = True
 lastx = 0
 lasty = 0
 
 class Controller:
-    
+
     __instance = None
-    
+
     @staticmethod
     def getInstance():
         if Controller.__instance == None:
             Controller()
         return Controller.__instance
-    
+
     def __init__(self):
         if Controller.__instance != None:
             raise Exception("Controller already exists!")
-        
+
         Controller.__instance = self
-        
+
         self.states = dict()
 
         self.states["camera_left"] = False
@@ -56,8 +58,8 @@ class Controller:
         self.can_jump = True
 
         self.last_update = time.time()
-        
-        
+
+
     def handle_key_press(self, symbol, modifiers, window):
         if symbol == glfw.KEY_A:
             self.states["camera_left"] = True
@@ -106,11 +108,11 @@ class Controller:
 
         if symbol == glfw.KEY_LEFT_ALT and self.states["free_cursor"] == False:
             self.states["free_cursor"] = True
-            glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_NORMAL) 
+            glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_NORMAL)
 
         elif symbol == glfw.KEY_LEFT_ALT and self.states["free_cursor"] == True:
             self.states["free_cursor"] = False
-            glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_DISABLED) 
+            glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
 
 
         if symbol == glfw.KEY_ESCAPE:
@@ -118,7 +120,7 @@ class Controller:
 
         if symbol == glfw.KEY_KP_SUBTRACT:
             Renderer.getInstance().bounces = Renderer.getInstance().bounces - 1
-        
+
         if symbol == glfw.KEY_KP_ADD:
             Renderer.getInstance().bounces = Renderer.getInstance().bounces + 1
 
@@ -137,8 +139,8 @@ class Controller:
         if symbol == glfw.KEY_R and self.states["accumulate"] == False:
             self.states["accumulate"] = True
         elif symbol == glfw.KEY_R and self.states["accumulate"] == True:
-            self.states["accumulate"] = False    
-        
+            self.states["accumulate"] = False
+
 
 
     def handle_key_release(self, symbol, modifiers):
@@ -178,7 +180,7 @@ class Controller:
 
         if symbol == glfw.KEY_Q:
             self.states["player_backward"] = False
-            
+
 
     def handle_mouse_movement(self, window, x, y):
         global first_mouse
@@ -199,7 +201,7 @@ class Controller:
         Camera.getInstance().turn(xoffset, yoffset)
 
 
-            
+
     def update(self, dt):
         player_target = 2
 
@@ -230,4 +232,4 @@ class Controller:
             Camera.getInstance().rise(-1 * dt)
 
         if self.states["accumulate"] == False:
-            Renderer.getInstance().reset_accumulation()
+            Renderer.get_instance().reset_accumulation()

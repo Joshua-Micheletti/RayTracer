@@ -1,0 +1,37 @@
+# ruff.toml
+
+# Directories to lint
+src = ["src"]
+
+# Python version
+target-version = "py312"
+
+# Select which rules to enable
+select = ["ALL"]
+
+# Rules to ignore
+ignore = ["T201", "COM812", "ERA001", "D401", "FBT001", "FBT002", "PYI041"]  # Example: ignore line-length errors
+
+# Line length
+line-length = 100
+
+# Fix issues automatically when possible
+fix = true
+
+# Show how many warnings/errors were found
+show-fixes = true
+
+# Exclude files or folders
+exclude = [
+    ".git",
+    "__pycache__",
+    "venv",
+    "build",
+    "dist"
+]
+
+# isort import sorting rules
+[isort]
+combine-as-imports = true
+force-single-line = false
+known-first-party = ["myproject"]

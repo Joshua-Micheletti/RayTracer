@@ -1,8 +1,6 @@
-from pyrr import Matrix44, Vector3
 import numpy as np
-import pyrr
-
 import pywavefront
+from pyrr import Matrix44
 
 
 class Model:
@@ -69,23 +67,17 @@ class Model:
                 self.bounding_max[1] = y
                 self.bounding_max[2] = z
 
-            if x < self.bounding_min[0]:
-                self.bounding_min[0] = x
+            self.bounding_min[0] = min(x, self.bounding_min[0])
 
-            if x > self.bounding_max[0]:
-                self.bounding_max[0] = x
+            self.bounding_max[0] = max(x, self.bounding_max[0])
 
-            if y < self.bounding_min[1]:
-                self.bounding_min[1] = y
+            self.bounding_min[1] = min(y, self.bounding_min[1])
 
-            if y > self.bounding_max[1]:
-                self.bounding_max[1] = y
+            self.bounding_max[1] = max(y, self.bounding_max[1])
 
-            if z < self.bounding_min[2]:
-                self.bounding_min[2] = z
+            self.bounding_min[2] = min(z, self.bounding_min[2])
 
-            if z > self.bounding_max[2]:
-                self.bounding_max[2] = z
+            self.bounding_max[2] = max(z, self.bounding_max[2])
 
             # print(x, y, z)
             # print(self.bounding_min)
@@ -106,7 +98,7 @@ class Model:
 
     def move(self, x, y, z):
         if x == 0 and y == 0 and z == 0:
-            return
+            return None
 
         self.x += x
         self.y += y
@@ -117,7 +109,7 @@ class Model:
 
     def scale(self, x, y, z):
         if x == self.scale_x and y == self.scale_y and z == self.scale_z:
-            return
+            return None
 
         self.scale_x = x
         self.scale_y = y
@@ -129,7 +121,7 @@ class Model:
 
     def scale_by(self, x, y):
         if x == 1 and y == 1 and z == 1:
-            return
+            return None
 
         self.scale(self.scale_x * x, self.scale_y * y, self.scale_z * z)
 
@@ -137,7 +129,7 @@ class Model:
 
     def place(self, x, y, z):
         if x == self.x and y == self.y and z == self.z:
-            return
+            return None
 
         self.x = x
         self.y = y
@@ -149,4 +141,3 @@ class Model:
 
 def normalize(vector):
     return vector / np.linalg.norm(vector)
-        

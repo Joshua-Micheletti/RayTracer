@@ -1,5 +1,56 @@
 #version 430
 
+// custom structs
+// ------------------------------------------------------- //
+// Struct for a node of the BVH
+struct BVHNode {
+    vec3 bbox_min;
+    int left;
+    vec3 bbox_max;
+    int right;
+    int prim_idx;
+    int prim_type;
+};
+
+// Struct for a sphere object to render
+struct Sphere {
+    vec3 center;
+    float radius;
+    int material;
+};
+
+// Struct for a plane object to render
+struct Plane {
+    vec3 center;
+    int material;
+    vec3 normal;
+};
+
+struct Triangle {
+    vec3 v0;
+    int material;
+    vec3 v1;
+    vec3 v2;
+};
+
+struct hit_t {
+    bool exists;
+    vec3 pos;
+    float t;
+    vec3 normal;
+    int index;
+    int primitive;
+    int material_index;
+    vec3 color;
+};
+
+// Ray struct
+struct Ray {
+    vec3 origin;
+    vec3 direction;
+    vec3 inv_direction;
+};
+
 // input-output
 // ------------------------------------------------------- //
 // position information
@@ -8,7 +59,7 @@ layout (local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
 // texture to write to
 layout (rgba32f, binding = 0) uniform image2D img_output;
 
-#define SIZE 60
+#define SIZE 64
 
 // SSBOs and UBOs
 layout (std430, binding = 1) buffer vertex { 
@@ -17,29 +68,35 @@ layout (std430, binding = 1) buffer vertex {
 layout (std140, binding = 2) uniform model {
     mat4[SIZE] model_mats;
 };
-layout (binding = 3) uniform index {
-    float[SIZE] indices;
+layout (std430, binding = 3) buffer index {
+    float[] indices;
 };
 layout (binding = 4) uniform normal {
     float[SIZE] mesh_normals;
 };
-layout (binding = 5) uniform sphere {
-    float[SIZE] spheres;
+layout (std430, binding = 5) buffer sphere {
+    Sphere[] spheres;
 };
-layout (binding = 6) uniform plane {
-    float[SIZE] planes;
+layout (std430, binding = 6) buffer plane {
+    Plane[] planes;
 };
 layout (binding = 7) uniform box {
     float[SIZE] boxes;
 };
-layout (binding = 8) uniform bounding_box {
-    float[SIZE] bounding_boxes;
+layout (std430, binding = 8) buffer bounding_box {
+    float[] bounding_boxes;
 };
-layout (binding = 9) uniform material {
-    float[SIZE] materials;
+layout (std430, binding = 9) buffer material {
+    float[] materials;
 };
 layout (binding = 10) uniform mesh_material_index {
     float[SIZE] mesh_material_indices;
+};
+layout(std430, binding = 11) buffer BVHNodes {
+    BVHNode nodes[];
+};
+layout(std430, binding = 12) buffer triangle {
+    Triangle triangles[];
 };
 
 // uniforms
@@ -72,18 +129,6 @@ const float SRGB_GAMMA = 1.0 / 2.2;
 const float SRGB_INVERSE_GAMMA = 2.2;
 const float SRGB_ALPHA = 0.055;
 
-// custom structs
-// ------------------------------------------------------- //
-struct hit_t {
-    bool exists;
-    vec3 pos;
-    float t;
-    vec3 normal;
-    int index;
-    int primitive;
-    int material_index;
-};
-
 
 // function declarations
 // ------------------------------------------------------- //
@@ -109,7 +154,6 @@ vec4 get_albedo(hit_t);
 
 // ray calculation
 hit_t calculate_ray(vec3, vec3, bool);
-hit_t calculate_shadow_ray(vec3, vec3, vec3);
 vec3 camera_ray_direction(vec2, mat4);
 hit_t find_nearest_hit(hit_t, hit_t, hit_t, hit_t);
 
@@ -130,155 +174,210 @@ hit_t calculate_planes(vec3, vec3, bool, float);
 hit_t ray_box_collision(vec3, vec3, vec3, vec3);
 hit_t calculate_boxes(vec3, vec3, bool, float);
 
+// Ray-AABB intersection (slab method)
+bool intersectAABB(vec3 rayOrig, vec3 rayDirInv, vec3 bboxMin, vec3 bboxMax, out float tmin, out float tmax) {
+    vec3 t1 = (bboxMin - rayOrig) * rayDirInv;
+    vec3 t2 = (bboxMax - rayOrig) * rayDirInv;
+
+    vec3 tminVec = min(t1, t2);
+    vec3 tmaxVec = max(t1, t2);
+
+    tmin = max(max(tminVec.x, tminVec.y), tminVec.z);
+    tmax = min(min(tmaxVec.x, tmaxVec.y), tmaxVec.z);
+
+    return tmax >= max(tmin, 0.0);
+}
+
+// BVH traversal returns closest hit
+hit_t traverse_bvh(Ray ray) {
+    int stack[64];   // traversal stack
+    int stackPtr = 0;
+    stack[stackPtr++] = 0; // start from root
+
+    hit_t hit;
+    hit.exists = false;
+
+    hit.t = 1e20;
+    hit.color = vec3(0.0, 0.0, 0.0);
+    // hit.prim_idx = -1;
+
+    hit.color = vec3(0.0, 0.0, 0.0);
+
+    while (stackPtr > 0) {
+        int nodeIdx = stack[--stackPtr];
+        BVHNode node = nodes[nodeIdx];
+
+        float tmin, tmax;
+        if (!intersectAABB(ray.origin, ray.inv_direction, node.bbox_min, node.bbox_max, tmin, tmax))
+            continue;
+
+        hit.color += vec3(0.01, 0.01, 0.01);
+
+        if (node.prim_idx >= 0) {
+            if (node.prim_type == 0) {
+                Triangle tri = triangles[node.prim_idx];
+
+                hit_t tri_hit = ray_triangle_collision(ray.origin, ray.direction, tri.v0, tri.v1, tri.v2, vec3(0, 0, 0));
+
+                if (tri_hit.exists) {
+                    if (tri_hit.t < hit.t) {
+                        tri_hit.color = hit.color;
+                        hit = tri_hit;
+                        hit.color = vec3(1.0, 1.0, 1.0);
+                        hit.material_index = tri.material;
+                        // hit.prim_idx = node.prim_idx;
+                    }
+                }
+            } else {
+                // hit.t = tmin;
+                // hitFound = true;
+                // // Leaf node - test sphere
+                Sphere sph = spheres[node.prim_idx];
+
+                hit_t sphere_hit = ray_sphere_collision(ray.origin, ray.direction, sph.center, sph.radius);
+
+                if (sphere_hit.exists) {
+                    if (sphere_hit.t < hit.t) {
+                        sphere_hit.color = hit.color;
+                        hit = sphere_hit;
+                        hit.color = vec3(1.0, 1.0, 1.0);
+                        hit.material_index = sph.material;
+                        // hit.prim_idx = node.prim_idx;
+                    }
+                }
+            }
+        } else {
+            // Internal node - push children
+            if (node.left >= 0) stack[stackPtr++] = node.left;
+            if (node.right >= 0) stack[stackPtr++] = node.right;
+        }
+    }
+
+    // return hitFound;
+    return hit;
+}
+
+hit_t calculate_ray_bvh(Ray ray) {
+    hit_t primitives_hit = traverse_bvh(ray);
+
+    hit_t plane_hit = calculate_planes(ray.origin, ray.direction, false, 10000);
+
+    // hit_t triangle_hit = calculate_triangles(ray.origin, ray.direction, false, 10000);
+    
+    //hit_t box_hit = calculate_boxes(ray_origin, ray_direction, shadow, 10000);
+
+    hit_t nearest_hit = find_nearest_hit(primitives_hit, plane_hit, plane_hit, plane_hit);
+
+    return nearest_hit;
+}
 
 // function definition
 // ------------------------------------------------------- //
 
 // main function
 void main() {
+    // get the position of the texel to draw based on the compute shader dispatch coordinate
     ivec2 texel_coord = ivec2(gl_GlobalInvocationID.xy);
-    vec2 position = vec2(0.0, 0.0);
-    ivec2 dims = imageSize(img_output);
-    position.x = (float(texel_coord.x * 2 - dims.x) / dims.x);
-    position.y = (float(texel_coord.y * 2 - dims.y) / dims.y);
 
+    // get the size of the texture to write to
+    ivec2 dims = imageSize(img_output);
+
+    // calculate the position vector
+    vec2 position = vec2(
+        float(texel_coord.x * 2 - dims.x) / dims.x,
+        float(texel_coord.y * 2 - dims.y) / dims.y
+    );
+
+    // calculate an rng value
     uint rng_state = uint(uint(texel_coord.x) * uint(1973) + uint(texel_coord.y) * uint(9277) + uint(time * 1000) * uint(26699)) | uint(1);
-    vec2 jitter = random_point_circle(rng_state) / dims.x;
+    
+    // use the rng value to calculate a jitter to apply to the ray
+    // vec2 jitter = random_point_circle(rng_state) / dims.x;
+    vec2 jitter = random_point_circle(rng_state) / vec2(dims);
+
 
     // color vector
     vec3 void_color = srgb_to_rgb(vec3(0.5, 0.5, 1.0));
     vec3 color = vec3(1.0, 1.0, 1.0);
 
-    vec3 origin = eye;
-    vec3 direction = camera_ray_direction(position.xy + jitter, inverse_view_projection);
 
+    Ray ray;
+    
+    // store the eye position as the origin of the ray
+    ray.origin = eye;
+
+    // calculate the direction of the ray based on the camera matrix
+    ray.direction = camera_ray_direction(position.xy + jitter, inverse_view_projection);
+
+    ray.inv_direction = 1 / ray.direction;
+
+    // declare the result of the ray hit
     hit_t hit;
+
+    // prepare the amount of light captured by the ray
     vec3 light = vec3(0);
 
+    // iterate through the number of bounces
     for (int i = 0; i < int(bounces); i++) {
-        hit = calculate_ray(origin, direction, false);
+        // do the ray intersection calculationù
+        hit = calculate_ray_bvh(ray);
 
+        // if the ray didn't hit anything, break out of the loop
         if (!hit.exists) {
+            light = vec3(0.2, 0.5, 1.0);
             break;
         }
 
-        origin = vec3(hit.pos + hit.normal * 0.001);
-
-        vec3 diffuse_direction = normalize(hit.normal + random_unit_vector(rng_state));
-        vec3 specular_direction = normalize(direction - 2 * hit.normal * dot(direction, hit.normal));
-
-        vec4 specular = get_albedo(hit);
-
-        bool albedo_chance = specular.w >= random(rng_state);
-
-        direction = mix(diffuse_direction, specular_direction, get_smoothness(hit) * int(albedo_chance));
-
-        if (dot(direction, hit.normal) < 0) {
-            direction = -direction;
-        }
-
-        float light_strength = dot(hit.normal, direction);
-
+        // get the emission from the hit response
         vec4 emission = get_emission(hit);
+        
+        // get the emitted light by the color multiplied by the strength
         vec3 emitted_light = emission.xyz * emission.w;
 
+        // add the emitted light multiplied by the color to get the total light
         light += emitted_light * color;
 
-        color *= mix(get_color(hit), specular.xyz, albedo_chance) * light_strength;
+        // if we reached the last bounce, we break early
+        if (i == int(bounces) + 1) {
+          break;
+        }
+       
+        // calculate the origin of the next ray as the last hit offset slightly on the normal
+        ray.origin = vec3(hit.pos + hit.normal * 0.001);
+        
+        // pick a random direction from the normal to calculate the next ray for diffuse lighting 
+        vec3 diffuse_direction = normalize(hit.normal + random_unit_vector(rng_state));
+        // calculate the reflection ray from the surface to get the specular lighting
+        vec3 specular_direction = normalize(ray.direction - 2 * hit.normal * dot(ray.direction, hit.normal));
+
+        // extract the albedo color from the hit data
+        vec4 specular = get_albedo(hit);
+
+        // get the chance of reflecting ?
+        bool albedo_chance = specular.w >= random(rng_state);
+
+        // calculate the direction of the bounce by mixing the specular and diffuse directions with the smoothness and albedo chance
+        ray.direction = mix(diffuse_direction, specular_direction, get_smoothness(hit) * int(albedo_chance));
+
+        // if the obtained direction is opposite to the normal, invert it
+        if (dot(ray.direction, hit.normal) < 0) {
+            ray.direction = -ray.direction;
+        }
+
+        ray.inv_direction = 1 / ray.direction;
+
+        // calculate the light strength based on the angle between the normal and the bounce direction
+        float light_strength = dot(hit.normal, ray.direction);
+
+        // get the color for the next hit
+        color *= mix(get_color(hit), specular.xyz, albedo_chance ? 1.0 : 0.0) * light_strength;
     }
 
-
-
-
-    // hit_t primary_hit = calculate_ray(origin, direction, false);
-
-    // if (!primary_hit.exists) {
-    //     imageStore(img_output, texel_coord, vec4(void_color, 1.0));
-    //     return;
-    // }
-
-    // color = get_color(primary_hit);
-
-    // float t;
-    // if (primary_hit.primitive == SPHERE) {
-    //     t = 0.1;
-    // } else {
-    //     t = 0.00001;
-    // }
-
-    // // REFLECTION PASS
-    // hit_t reflection_hit = primary_hit;
-
-    // // for (int i = 0; i < 1; i++) {
-    // //     origin = reflection_hit.pos + reflection_hit.normal * t;
-    // //     direction = normalize(direction - 2 * reflection_hit.normal * dot(direction, reflection_hit.normal));
-
-    // //     reflection_hit = calculate_ray(origin, direction, false);
-
-    // //     if (reflection_hit.exists) {
-    // //         vec3 reflect_color = vec3(1.0, 1.0, 1.0);
-    // //         vec3 light_position = vec4(light_model * vec4(0, 0, 0, 1)).xyz;
-    // //         origin = reflection_hit.pos + reflection_hit.normal * t;
-    // //         direction = normalize(light_position - origin);
-
-    // //         hit_t reflection_shadow_hit = calculate_shadow_ray(origin, direction, light_position);
-
-    // //         if (reflection_shadow_hit.exists) {
-    // //             reflect_color = get_color(reflection_hit) * 0.5;
-
-    // //         } else {
-    // //             reflect_color = get_color(reflection_hit);
-    // //         }
-
-    // //         color = mix(color, color * reflect_color, get_shininess(primary_hit));  
-
-    // //     } else {
-    // //         color = mix(color, color * srgb_to_rgb(void_color) * 0.5, get_shininess(primary_hit));
-    // //         break;
-    // //     }
-    // // }
-
-    // // SHADOW PASS
-    
-    // origin = vec3(primary_hit.pos + primary_hit.normal * t);
-
-    // // float seed = time + dims.y * texel_coord.x / dims.x + texel_coord.y / dims.y;
-
-    // // point light:
-    // // vec3 light_position = vec4(light_model * vec4(0, 0, 0, 1)).xyz;
-    // // direction = normalize(light_position - origin);
-
-    // // direction = normalize(vec3(rand(time), rand(time), rand(time)));
-    // // direction = normalize(hash3((random * position.x * position.y - 0.5) * 2));
-
-    // direction = (vec3(n8rand(position, time), n8rand(position + 0.1, time), n8rand(position + 0.2, time)) - 0.5) * 2;
-
-    // if (dot(direction, primary_hit.normal) < 0) {
-    //     direction = -direction;
-    // }
-    
-    // hit_t light_hit = calculate_ray(origin, direction, false);
-
-
-    // if (light_hit.exists && light_hit.primitive == TRIANGLE && light_hit.index == 2) {
-    //     color *= dot(direction, primary_hit.normal);
-    // } else {
-    //     color *= 0.0;
-    // }
-
-    // if (shadow_hit.exists && shadow_hit.primitive != TRIANGLE shadow_hit.index == 2) {
-       
-    // } else {
-    //     color *= 0.0;
-    // }
-
-    // if (shadow_hit.exists) {
-    //     color *= 0.0;
-    // } else {
-    //     color = color * map(dot(direction, primary_hit.normal), -1.0, 1.0, -1.0, 1.0);;
-    // }
-
+    // store the pixel in the texture
     imageStore(img_output, texel_coord, vec4(rgb_to_srgb(light), 1.0));
+
+    // imageStore(img_output, texel_coord, vec4(hit.color, 1.0));
+    // imageStore(img_output, texel_coord, vec4(triangles[0].v2, 1.0));
 }
 
 
@@ -470,13 +569,13 @@ hit_t calculate_planes(vec3 ray_origin, vec3 ray_direction, bool shadow, float m
     nearest_hit.exists = false;
     nearest_hit.t = 9999999;
 
-    for (int i = 0; i <= planes.length(); i += 7) {
-        vec3 position = vec3(planes[i], planes[i + 1], planes[i + 2]);
-        vec3 normal = vec3(planes[i + 3], planes[i + 4], planes[i + 5]);
+    for (int i = 0; i <= planes.length(); i++) {
+        vec3 position = vec3(planes[i].center.x, planes[i].center.y, planes[i].center.z);
+        vec3 normal = vec3(planes[i].normal.x, planes[i].normal.y, planes[i].normal.z);
 
         hit_t hit = ray_plane_collision(ray_origin, ray_direction, position, normal);
-        hit.index = int(i / 7);
-        hit.material_index = int(planes[i + 6]);
+        hit.index = i;
+        hit.material_index = int(planes[i].material);
 
         if (hit.exists) {
             if (shadow) {
@@ -537,17 +636,13 @@ hit_t calculate_spheres(vec3 ray_origin, vec3 ray_direction, bool shadow, float 
     nearest_hit.exists = false;
     nearest_hit.t = 999999;
 
-    // vec3 center = vec3(-1.0, 1.0, -1.0);
-
-    // float radius = 0.5;
-
-    for (int i = 0; i <= spheres.length(); i += 5) {
-        vec3 center = vec3(spheres[i], spheres[i + 1], spheres[i + 2]);
-        float radius = spheres[i + 3];
+    for (int i = 0; i <= spheres.length(); i++) {
+        vec3 center = spheres[i].center;
+        float radius = spheres[i].radius;
 
         hit_t hit = ray_sphere_collision(ray_origin, ray_direction, center, radius);
-        hit.index = int(i / 5);
-        hit.material_index = int(spheres[i + 4]);
+        hit.index = i;
+        hit.material_index = int(spheres[i].material);
 
         if (hit.exists) {
             if (shadow) {
@@ -575,12 +670,12 @@ hit_t ray_triangle_collision(vec3 ray_origin, vec3 ray_direction, vec3 v0, vec3 
     vec3 normal_ = normalize(cross(edge01, edge02));
     result.normal = normal_;
 
-    float dist = -dot(normal, v0);
+    float dist = -dot(normal_, v0);
 
-    float parallelism = dot(normal, ray_direction);
+    float parallelism = dot(normal_, ray_direction);
 
     if (parallelism != 0.0) {
-        result.t = -(dot(normal, ray_origin) + dist) / parallelism;
+        result.t = -(dot(normal_, ray_origin) + dist) / parallelism;
 
         if (result.t > 0.0) {
             result.pos = ray_origin + (result.t * ray_direction);
@@ -672,59 +767,20 @@ hit_t calculate_boxes(vec3 ray_origin, vec3 ray_direction, bool shadow, float ma
 hit_t calculate_triangles(vec3 ray_origin, vec3 ray_direction, bool shadow, float max_t) {
     hit_t nearest_hit;
     nearest_hit.exists = false;
-    // initial distance from the hit
     nearest_hit.t = 9999999;
 
-    // index variable to keep track of what model we're rendering
-    int model_index = 0;
-    // counter of vertices inside the model
-    float vertex_index = 0;
-    int normal_index = 0;
-    bool skip = false;
+    for (int i = 0; i <= triangles.length(); i++) {
+        hit_t hit = ray_triangle_collision(ray_origin, ray_direction, triangles[i].v0, triangles[i].v1, triangles[i].v2, vec3(0, 0, 0));
+        hit.index = i;
+        hit.material_index = int(triangles[i].material);
 
-    for (int i = 0; i <= vertices.length(); i += 9, vertex_index += 9, normal_index += 3) {
-        if (vertex_index >= indices[model_index]) {
-            vertex_index = 0;
-            model_index += 1;
-            skip = false;
-        }
-
-        if (vertex_index == 0) {
-            vec4 b0 = vec4(bounding_boxes[model_index * 6], bounding_boxes[model_index * 6 + 1], bounding_boxes[model_index * 6 + 2], 1.0);
-            vec4 b1 = vec4(bounding_boxes[model_index * 6 + 3], bounding_boxes[model_index * 6 + 4], bounding_boxes[model_index * 6 + 5], 1.0);
-
-            b0 = model_mats[model_index] * b0;
-            b1 = model_mats[model_index] * b1;
-
-            hit_t aabb_hit = ray_box_collision(ray_origin, ray_direction, b0.xyz, b1.xyz);
-
-            if (!aabb_hit.exists) {
-                skip = true;
-            }
-        }
-
-        if (!skip) {
-
-            vec4 v0 = vec4(vertices[i    ], vertices[i + 1], vertices[i + 2], 1.0);
-            vec4 v1 = vec4(vertices[i + 3], vertices[i + 4], vertices[i + 5], 1.0);
-            vec4 v2 = vec4(vertices[i + 6], vertices[i + 7], vertices[i + 8], 1.0);
-            vec4 normal = vec4(mesh_normals[normal_index], mesh_normals[normal_index + 1], mesh_normals[normal_index + 2], 0.0);
-
-            v0 = model_mats[model_index] * v0;
-            v1 = model_mats[model_index] * v1;
-            v2 = model_mats[model_index] * v2;
-
-            hit_t hit = ray_triangle_collision(ray_origin, ray_direction, v0.xyz, v1.xyz, v2.xyz, normal.xyz);
-            hit.index = model_index;
-
-            if (hit.exists) {
-                if (shadow) {
-                    if (hit.t <= max_t) {
-                        return(hit);
-                    }
-                } else if (hit.t < nearest_hit.t) {
-                    nearest_hit = hit;
+        if (hit.exists) {
+            if (shadow) {
+                if (hit.t <= max_t) {
+                    return(hit);
                 }
+            } else if (hit.t < nearest_hit.t) {
+                nearest_hit = hit;
             }
         }
     }
@@ -761,49 +817,19 @@ hit_t find_nearest_hit(hit_t h0, hit_t h1, hit_t h2, hit_t h3) {
 
 hit_t calculate_ray(vec3 ray_origin, vec3 ray_direction, bool shadow) {
 
-    hit_t triangle_hit = calculate_triangles(ray_origin, ray_direction, shadow, 10000);
+    //hit_t triangle_hit = calculate_triangles(ray_origin, ray_direction, shadow, 10000);
 
     hit_t sphere_hit = calculate_spheres(ray_origin, ray_direction, shadow, 10000);
 
     hit_t plane_hit = calculate_planes(ray_origin, ray_direction, shadow, 10000);
+    
+    //hit_t box_hit = calculate_boxes(ray_origin, ray_direction, shadow, 10000);
 
-    hit_t box_hit = calculate_boxes(ray_origin, ray_direction, shadow, 10000);
-
-
-    hit_t nearest_hit = find_nearest_hit(triangle_hit, sphere_hit, plane_hit, box_hit);
+    hit_t nearest_hit = find_nearest_hit(sphere_hit, plane_hit, sphere_hit, plane_hit);
 
 
     return(nearest_hit);
+    //return(sphere_hit);
 }
 
-hit_t calculate_shadow_ray(vec3 ray_origin, vec3 ray_direction, vec3 light_position) {
-    float t_to_light = (light_position.x - ray_origin.x) / ray_direction.x;
 
-    hit_t triangle_hit = calculate_triangles(ray_origin, ray_direction, true, t_to_light);
-
-    if (triangle_hit.exists) {
-        return(triangle_hit);
-    }
-
-    hit_t sphere_hit = calculate_spheres(ray_origin, ray_direction, true, t_to_light);
-
-    if (sphere_hit.exists) {
-        return(sphere_hit);
-    }
-
-    hit_t plane_hit = calculate_planes(ray_origin, ray_direction, true, t_to_light);
-
-    if (plane_hit.exists) {
-        return(plane_hit);
-    }
-
-    hit_t box_hit = calculate_boxes(ray_origin, ray_direction, true, t_to_light);
-
-    if (box_hit.exists) {
-        return(box_hit);
-    }
-
-    hit_t none;
-    none.exists = false;
-    return(none);
-}
