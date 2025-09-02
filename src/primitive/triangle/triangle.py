@@ -3,7 +3,7 @@
 import numpy as np
 from numpy.typing import NDArray
 
-from aabb.AABB import AABB
+from aabb import AABB
 from primitive.primitive import Primitive
 from utils.typecheck import is_3d_array
 from utils.utils import format_xyz
@@ -20,30 +20,38 @@ class Triangle(Primitive):
     # ------------------------------ Dunder methods ------------------------------ #
     def __init__(
         self,
-        v0: list[float] | NDArray[np.float32],
-        v1: list[float] | NDArray[np.float32],
-        v2: list[float] | NDArray[np.float32],
+        v0: list[float] | NDArray[np.float32] = None,
+        v1: list[float] | NDArray[np.float32] = None,
+        v2: list[float] | NDArray[np.float32] = None,
         material: int = 0,
     ) -> None:
-        """Initialization method.
+        """
+        Initialization method.
 
         Args:
-            v0 (list[float] | NDArray[np.float32]): First vertex coordinates of the triangle
-            v1 (list[float] | NDArray[np.float32]): Second vertex coordinates of the triangle
-            v2 (list[float] | NDArray[np.float32]): Third vertex coordinates of the triangle
+            v0 (list[float] | NDArray[np.float32]): First vertex coordinates of the triangle. Defaults to [-0.5, 0.0, -0.5]
+            v1 (list[float] | NDArray[np.float32]): Second vertex coordinates of the triangle. Defaults to [0.0, 1.0, 0.0]
+            v2 (list[float] | NDArray[np.float32]): Third vertex coordinates of the triangle. Defaults to [0.5, 0.0, 0.5]
             material (int, optional): Material Index. Defaults to 0.
 
-        """
+        """  # noqa: E501
+        if v0 is None:
+            v0 = [-0.5, 0.0, -0.5]
+        if v1 is None:
+            v1 = [0.0, 1.0, 0.0]
+        if v2 is None:
+            v2 = [0.5, 0.0, 0.5]
+
+        f4 = np.dtype("<f4")  # little-endian float32
+        u4 = np.dtype("<u4")  # little-endian uint32
+
         self._dtype = np.dtype(
-            [
-                ("v0", np.float32, 3),  # 12B (4)
-                ("material", np.int32),
-                ("v1", np.float32, 3),  # 12B (4)
-                ("_pad", np.float32),  # 4B  # 8B
-                ("v2", np.float32, 3),  # 12B (4)
-                ("_pad2", np.float32)
-            ],
-            align=True,
+            {
+                "names": ["v0", "material", "v1", "_pad1", "v2", "_pad2", "normal", "_pad3"],
+                "formats": [(f4, 3), u4, (f4, 3), f4, (f4, 3), f4, (f4, 3), f4],
+                "offsets": [0, 12, 16, 28, 32, 44, 48, 60],
+                "itemsize": 64,  # total struct size = 64 bytes (multiple of 16)
+            }
         )
 
         self._v0 = None
@@ -57,6 +65,13 @@ class Triangle(Primitive):
         self.v2 = v2
 
     def __str__(self) -> str:
+        """
+        Dunder method for representing the object as a string.
+
+        Returns:
+            str: Formatted string
+
+        """
         output: str = "Triangle:\n"
         output += f"\tv0: {format_xyz(self.v0)}\n"
         output += f"\tv1: {format_xyz(self.v1)}\n"
@@ -65,6 +80,13 @@ class Triangle(Primitive):
         return output
 
     def __repr__(self) -> str:
+        """
+        Dunder method for representing the object as a string.
+
+        Returns:
+            str: Formatted string
+
+        """
         output: str = "Triangle:\n"
         output += f"\tv0: {format_xyz(self.v0)}\n"
         output += f"\tv1: {format_xyz(self.v1)}\n"
@@ -74,7 +96,8 @@ class Triangle(Primitive):
 
     @property
     def v0(self) -> NDArray[np.float32]:
-        """Coordinates of the first vertex.
+        """
+        Coordinates of the first vertex.
 
         Returns:
             NDArray[np.float32]: Array containing the X, Y, Z coordinates of the vertex
@@ -91,7 +114,8 @@ class Triangle(Primitive):
 
     @property
     def v1(self) -> NDArray[np.float32]:
-        """Coordinates of the second vertex.
+        """
+        Coordinates of the second vertex.
 
         Returns:
             NDArray[np.float32]: Array containing the X, Y, Z coordinates of the vertex
@@ -108,7 +132,8 @@ class Triangle(Primitive):
 
     @property
     def v2(self) -> NDArray[np.float32]:
-        """Coordinates of the third vertex.
+        """
+        Coordinates of the third vertex.
 
         Returns:
             NDArray[np.float32]: Array containing the X, Y, Z coordinates of the vertex
@@ -136,13 +161,21 @@ class Triangle(Primitive):
         min_coords: NDArray[np.float32] = np.min(verts, axis=0)
         max_coords: NDArray[np.float32] = np.max(verts, axis=0)
 
-        self._aabb = AABB(min=min_coords, max=max_coords)
+        self._aabb = AABB(min_coords=min_coords, max_coords=max_coords)
 
     def _calculate_ogl_ssbo_array(self) -> None:
         """Private method for calculating the data array for OpenGL SSBO."""
         # if the properties aren't initialized, skip the execution
         if self._v0 is None or self._v1 is None or self._v2 is None:
             return
+
+        # Compute edge vectors
+        edge01 = self._v1 - self._v0
+        edge02 = self._v2 - self._v0
+
+        # Compute the normal
+        normal = np.cross(edge01, edge02)
+        normal = normal / np.linalg.norm(normal)  # normalize
 
         # reset the data array
         self._ogl_ssbo_data = np.zeros(1, dtype=self._dtype)
@@ -152,5 +185,11 @@ class Triangle(Primitive):
         self._ogl_ssbo_data[0]["v1"] = [self._v1[0], self._v1[1], self._v1[2]]
         self._ogl_ssbo_data[0]["v2"] = [self._v2[0], self._v2[1], self._v2[2]]
         self._ogl_ssbo_data[0]["material"] = self._material
-        self._ogl_ssbo_data[0]["_pad"] = 0.0  # padding float
-        self._ogl_ssbo_data[0]["_pad2"] = 0.0  # padding float
+        self._ogl_ssbo_data[0]["normal"] = [normal[0], normal[1], normal[2]]
+        # self._ogl_ssbo_data[0]["edge1"] = edge01
+        # self._ogl_ssbo_data[0]["edge2"] = edge02
+        # self._ogl_ssbo_data[0]["_pad"] = 0.0  # padding float
+        # self._ogl_ssbo_data[0]["_pad2"] = 0.0  # padding float
+        # self._ogl_ssbo_data[0]["_pad3"] = 0.0
+        # self._ogl_ssbo_data[0]["_pad4"] = 0.0
+        # self._ogl_ssbo_data[0]["_pad5"] = 0.0

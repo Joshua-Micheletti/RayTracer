@@ -1,0 +1,36 @@
+title = "My App"
+
+[variables]
+white = [1.0, 1.0, 1.0]
+red = [1.0, 0.0, 0.0]
+green = [0.0, 1.0, 0.0]
+blue = [0.0, 0.0, 1.0]
+black = [0.0, 0.0, 0.0]
+sphere_radius = 0.4
+
+
+# emissive white
+[[materials]]
+color = "{white}"
+emission = [1.0, 1.0, 1.0, 12.0]
+
+# Opaque materials
+[[materials]]
+color = "{white}"
+
+[[spheres]]
+center = [0.0, 0.0, 0.0]
+radius = 0.5
+material = 0
+
+[[spheres]]
+center = [0.0, 1.5, 0.0]
+radius = 0.5
+material = 1
+
+[[quads]]
+center = [0.0, 3.0, 0.0]
+normal = [0.0, -1.0, 0.0]
+width = 5
+height = 5
+material = 0

@@ -1,0 +1,370 @@
+title = "My App"
+
+[variables]
+white = [1.0, 1.0, 1.0]
+red = [1.0, 0.0, 0.0]
+green = [0.0, 1.0, 0.0]
+blue = [0.0, 0.0, 1.0]
+black = [0.0, 0.0, 0.0]
+sphere_radius = 0.4
+
+
+# emissive white
+[[materials]]
+color = "{white}"
+emission = [1.0, 1.0, 1.0, 12.0]
+
+# Opaque materials
+[[materials]]
+color = "{white}"
+
+[[materials]] 
+color = "{red}"
+
+[[materials]] 
+color = "{green}"
+
+[[materials]] 
+color = "{blue}"
+
+[[materials]] 
+color = "{black}"
+
+# Emissive materials
+[[materials]]
+color = "{white}"
+emission = [1.0, 1.0, 1.0, 5.0]
+
+[[materials]]
+color = "{red}"
+emission = [1.0, 0.0, 0.0, 5.0]
+
+[[materials]]
+color = "{green}"
+emission = [0.0, 1.0, 0.0, 5.0]
+
+[[materials]]
+color = "{blue}"
+emission = [0.0, 0.0, 1.0, 5.0]
+
+[[materials]]
+color = "{black}"
+emission = [0.0, 0.0, 0.0, 5.0]
+
+# Shiny materials
+[[materials]]
+color = "{white}"
+smoothness = 1.0
+
+[[materials]] 
+color = "{red}"
+smoothness = 1.0
+
+[[materials]] 
+color = "{green}"
+smoothness = 1.0
+
+[[materials]] 
+color = "{blue}"
+smoothness = 1.0
+
+[[materials]] 
+color = "{black}"
+smoothness = 1.0
+
+# Metallic materials
+[[materials]]
+color = "{white}"
+metallic = 1.0
+
+[[materials]] 
+color = "{red}"
+metallic = 1.0
+
+[[materials]] 
+color = "{green}"
+metallic = 1.0
+
+[[materials]] 
+color = "{blue}"
+metallic = 1.0
+
+[[materials]] 
+color = "{black}"
+metallic = 1.0
+
+# Transmissive materials
+[[materials]]
+color = "{white}"
+transmission = 1.0
+smoothness = 1.0
+ior = 1.5
+
+[[materials]] 
+color = "{red}"
+transmission = 1.0
+smoothness = 1.0
+ior = 1.5
+
+[[materials]] 
+color = "{green}"
+transmission = 1.0
+smoothness = 1.0
+ior = 1.5
+
+[[materials]] 
+color = "{blue}"
+transmission = 1.0
+smoothness = 1.0
+ior = 1.5
+
+[[materials]] 
+color = "{black}"
+transmission = 1.0
+smoothness = 1.0
+ior = 1.5
+
+# Frosted materials
+[[materials]]
+color = "{white}"
+transmission = 1.0
+smoothness = 0.5
+ior = 1.5
+
+[[materials]] 
+color = "{red}"
+transmission = 1.0
+smoothness = 0.5
+ior = 1.5
+
+[[materials]] 
+color = "{green}"
+transmission = 1.0
+smoothness = 0.5
+ior = 1.5
+
+[[materials]] 
+color = "{blue}"
+transmission = 1.0
+smoothness = 0.5
+ior = 1.5
+
+[[materials]] 
+color = "{black}"
+transmission = 1.0
+smoothness = 0.5
+ior = 1.5
+
+
+# Spheres
+# Row
+[[spheres]]
+center = [-2.0, 0.0, -2.0]
+radius = "{sphere_radius}"
+material = 1
+
+[[spheres]]
+center = [-2.0, 0.0, -1.0]
+radius = "{sphere_radius}"
+material = 2
+
+[[spheres]]
+center = [-2.0, 0.0, -0.0]
+radius = "{sphere_radius}"
+material = 3
+
+[[spheres]]
+center = [-2.0, 0.0, 1.0]
+radius = "{sphere_radius}"
+material = 4
+
+[[spheres]]
+center = [-2.0, 0.0, 2.0]
+radius = "{sphere_radius}"
+material = 5
+
+# Row
+[[spheres]]
+center = [-2.0, 1.0, -2.0]
+radius = "{sphere_radius}"
+material = 6
+
+[[spheres]]
+center = [-2.0, 1.0, -1.0]
+radius = "{sphere_radius}"
+material = 7
+
+[[spheres]]
+center = [-2.0, 1.0, -0.0]
+radius = "{sphere_radius}"
+material = 8
+
+[[spheres]]
+center = [-2.0, 1.0, 1.0]
+radius = "{sphere_radius}"
+material = 9
+
+[[spheres]]
+center = [-2.0, 1.0, 2.0]
+radius = "{sphere_radius}"
+material = 10
+
+# Row
+[[spheres]]
+center = [-2.0, 2.0, -2.0]
+radius = "{sphere_radius}"
+material = 11
+
+[[spheres]]
+center = [-2.0, 2.0, -1.0]
+radius = "{sphere_radius}"
+material = 12
+
+[[spheres]]
+center = [-2.0, 2.0, -0.0]
+radius = "{sphere_radius}"
+material = 13
+
+[[spheres]]
+center = [-2.0, 2.0, 1.0]
+radius = "{sphere_radius}"
+material = 14
+
+[[spheres]]
+center = [-2.0, 2.0, 2.0]
+radius = "{sphere_radius}"
+material = 15
+
+
+# Row
+[[spheres]]
+center = [-2.0, 3.0, -2.0]
+radius = "{sphere_radius}"
+material = 16
+
+[[spheres]]
+center = [-2.0, 3.0, -1.0]
+radius = "{sphere_radius}"
+material = 17
+
+[[spheres]]
+center = [-2.0, 3.0, -0.0]
+radius = "{sphere_radius}"
+material = 18
+
+[[spheres]]
+center = [-2.0, 3.0, 1.0]
+radius = "{sphere_radius}"
+material = 19
+
+[[spheres]]
+center = [-2.0, 3.0, 2.0]
+radius = "{sphere_radius}"
+material = 20
+
+# Row
+[[spheres]]
+center = [-2.0, 4.0, -2.0]
+radius = "{sphere_radius}"
+material = 21
+
+[[spheres]]
+center = [-2.0, 4.0, -1.0]
+radius = "{sphere_radius}"
+material = 22
+
+[[spheres]]
+center = [-2.0, 4.0, -0.0]
+radius = "{sphere_radius}"
+material = 23
+
+[[spheres]]
+center = [-2.0, 4.0, 1.0]
+radius = "{sphere_radius}"
+material = 24
+
+[[spheres]]
+center = [-2.0, 4.0, 2.0]
+radius = "{sphere_radius}"
+material = 25
+
+# Row
+[[spheres]]
+center = [-2.0, 5.0, -2.0]
+radius = "{sphere_radius}"
+material = 26
+
+[[spheres]]
+center = [-2.0, 5.0, -1.0]
+radius = "{sphere_radius}"
+material = 27
+
+[[spheres]]
+center = [-2.0, 5.0, -0.0]
+radius = "{sphere_radius}"
+material = 28
+
+[[spheres]]
+center = [-2.0, 5.0, 1.0]
+radius = "{sphere_radius}"
+material = 29
+
+[[spheres]]
+center = [-2.0, 5.0, 2.0]
+radius = "{sphere_radius}"
+material = 30
+
+# Quads
+[[quads]] # ceiling
+center = [0.0, -1.0, 0.0]
+width = 16
+height = 20
+normal = [0.0, 1.0, 0.0]
+material = 1
+
+[[quads]] # floor
+center = [0.0, 8.0, 0.0]
+width = 16
+height = 20
+normal = [0.0, -1.0, 0.0]
+material = 1
+
+[[quads]] # wall
+center = [10.0, 0.0, 0.0]
+width = 20
+height = 20
+normal = [-1.0, 0.0, 0.0]
+material = 1
+
+[[quads]] # wall
+center = [-10.0, 0.0, 0.0]
+width = 20
+height = 20
+normal = [1.0, 0.0, 0.0]
+material = 1
+
+[[quads]] # wall
+center = [0.0, 0.0, 8.0]
+width = 20
+height = 20
+normal = [0.0, 0.0, -1.0]
+material = 2
+
+[[quads]] # wall
+center = [0.0, 0.0, -8.0]
+width = 20
+height = 20
+normal = [0.0, 0.0, 1.0]
+material = 3
+
+[[quads]]
+center = [0.0, 7.9999, 0.0]
+width = 2
+height = 2
+normal = [0.0, -1.0, 0.0]
+material = 0
+
+[[meshes]]
+path = "./models/standford2.obj"
+material = 26
+

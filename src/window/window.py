@@ -7,7 +7,7 @@ import numpy as np
 from OpenGL import GL
 from pyrr import Matrix44
 
-from controller.Controller import Controller
+from controller import Controller
 from renderer import Renderer
 
 first_mouse: bool = True
@@ -20,7 +20,8 @@ class Window:
 
     @staticmethod
     def get_instance() -> "Window":
-        """Static method for getting an instance of the Window Singleton object.
+        """
+        Static method for getting an instance of the Window Singleton object.
 
         Returns:
             Window: Instance of the window object
@@ -31,8 +32,9 @@ class Window:
 
         return Window.__instance
 
-    def __init__(self, width: int = 640, height: int = 480, name: str = "Pyllium") -> None:
-        """Initialization method for the class.
+    def __init__(self, width: int = 1280, height: int = 720, name: str = "Pyllium") -> None:
+        """
+        Initialization method for the class.
 
         Args:
             width (int, optional): Initial width of the window. Defaults to 640.
@@ -63,6 +65,7 @@ class Window:
         glfw.window_hint(glfw.BLUE_BITS, 8)
         glfw.window_hint(glfw.DEPTH_BITS, 24)
         glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+        # glfw.window_hint(glfw.OPENGL_DEBUG_CONTEXT, glfw.FALSE)
 
         # initialize the window object using GLFW
         self.window = glfw.create_window(width, height, name, None, None)
@@ -130,7 +133,8 @@ class WindowInitializedError(Exception):
     """Custom exception for when the Window is already initialized."""
 
     def __init__(self, message: str) -> None:
-        """Initialization method.
+        """
+        Initialization method.
 
         Args:
             message (str): Message to display in the error
@@ -140,7 +144,8 @@ class WindowInitializedError(Exception):
         super().__init__(message)
 
     def __str__(self) -> str:
-        """To string method.
+        """
+        To string method.
 
         Returns:
             str: String representation of the object
@@ -150,7 +155,8 @@ class WindowInitializedError(Exception):
 
 
 def key_callback(window: any, key: str, _scancode: str, action: str, mods: str) -> None:
-    """Callback function for when a key is pressed.
+    """
+    Callback function for when a key is pressed.
 
     Args:
         window (any): Window object
@@ -162,13 +168,14 @@ def key_callback(window: any, key: str, _scancode: str, action: str, mods: str) 
     """
     # handle different type of key presses depending on the action value
     if action == glfw.PRESS:
-        Controller.getInstance().handle_key_press(key, mods, window)
+        Controller.get_instance().handle_key_press(key, mods, window)
     if action == glfw.RELEASE:
-        Controller.getInstance().handle_key_release(key, mods)
+        Controller.get_instance().handle_key_release(key, mods)
 
 
 def framebuffer_size_callback(_window: any, width: int, height: int) -> None:
-    """Callback function for when the window is resized.
+    """
+    Callback function for when the window is resized.
 
     Args:
         window (any): Window object
@@ -176,8 +183,7 @@ def framebuffer_size_callback(_window: any, width: int, height: int) -> None:
         height (int): New window height
 
     """
-    # update the OpenGL viewport with the new dimensions
-    GL.glViewport(0, 0, width, height)
+    # GL.glViewport(0, 0, width, height)
 
     # get a reference to the Window Singleton
     window_ref: Window = Window.get_instance()
@@ -194,7 +200,8 @@ def framebuffer_size_callback(_window: any, width: int, height: int) -> None:
 
 
 def mouse_callback(window: any, xpos: int, ypos: int) -> None:
-    """Callback function for when the mouse moves.
+    """
+    Callback function for when the mouse moves.
 
     Args:
         window (any): Window object
@@ -202,4 +209,4 @@ def mouse_callback(window: any, xpos: int, ypos: int) -> None:
         ypos (int): New y position of the mouse
 
     """
-    Controller.getInstance().handle_mouse_movement(window, xpos, ypos)
+    Controller.get_instance().handle_mouse_movement(window, xpos, ypos)

@@ -16,22 +16,28 @@ class Plane(Primitive):
     # ------------------------------ Dunder methods ------------------------------ #
     def __init__(
         self,
-        point: list[float] | NDArray[np.float32],
-        normal: list[float] | NDArray[np.float32],
+        point: list[float] | NDArray[np.float32] = None,
+        normal: list[float] | NDArray[np.float32] = None,
         material: int = 0,
     ) -> None:
-        """Initialization method.
+        """
+        Initialization method.
 
         Args:
-            point (list[float] | NDArray[np.float32]): Point that lies on the plane
-            normal (list[float] | NDArray[np.float32]): Normal vector of the plane
+            point (list[float] | NDArray[np.float32]): Point that lies on the plane. Defaults to [0.0, 0.0, 0.0]
+            normal (list[float] | NDArray[np.float32]): Normal vector of the plane. Defaults to [0.0, 1.0, 0.0]
             material (int): Material index. Defaults to 0
 
-        """
+        """  # noqa: E501
+        if point is None:
+            point = [0.0, 0.0, 0.0]
+        if normal is None:
+            normal = [0.0, 1.0, 0.0]
+
         self._dtype = np.dtype(
             [
                 ("point", np.float32, 3),  # 12B
-                ("material", np.int32),  # 4B
+                ("material", np.uint32),  # 4B
                 ("normal", np.float32, 3),  # 12B
                 ("_pad", np.int32),  # 4B
             ],
@@ -43,13 +49,15 @@ class Plane(Primitive):
         self._normal = None
 
         super().__init__(material=material)
+
         self.point = point
         self.normal = normal
 
     # ---------------------------- Setters and Getters --------------------------- #
     @property
     def point(self) -> NDArray[np.float32]:
-        """Coordinates of a point that lies on the plane.
+        """
+        Coordinates of a point that lies on the plane.
 
         Returns:
             NDArray[np.float32]: Array containing the X, Y, Z coordinates of the point
@@ -65,7 +73,8 @@ class Plane(Primitive):
 
     @property
     def normal(self) -> NDArray[np.float32]:
-        """Normal vector of the plane.
+        """
+        Normal vector of the plane.
 
         Returns:
             NDArray[np.float32]: Array containing the X, Y, Z components of the normal vector

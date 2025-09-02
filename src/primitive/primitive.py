@@ -1,24 +1,32 @@
+"""primitive module."""
+
 from abc import ABC, abstractmethod
 
-import numpy as np
-from numpy.typing import NDArray
-
-from aabb.AABB import AABB
+from aabb import AABB
+from core import SSBOData
 
 
-class Primitive(ABC):
+class Primitive(SSBOData, ABC):
+    """Abstract class to create primitives for rendering."""
+
     _aabb: AABB
     _material: int
-    _dtype: np.dtype
-    _ogl_ssbo_data: NDArray
 
     def __init__(self, material: int = 0) -> None:
+        """
+        Initialization method.
+
+        Args:
+            material (int, optional): Material index. Defaults to 0.
+
+        """
         self._material = material
-        self._ogl_ssbo_data = np.zeros(1, dtype=self.dtype)
+        super().__init__()
 
     @property
     def aabb(self) -> AABB:
-        """Axis alligned bounding box of the sphere.
+        """
+        Axis alligned bounding box of the sphere.
 
         Returns:
             AABB: AABB object containing the extremes of the sphere
@@ -27,28 +35,9 @@ class Primitive(ABC):
         return self._aabb
 
     @property
-    def dtype(self) -> np.dtype:
-        """Numpy dtype for the formatted data of the sphere.
-
-        Returns:
-            np.dtype: Type of the sphere data
-
-        """
-        return self._dtype
-
-    @property
-    def ogl_ssbo_data(self) -> NDArray:
-        """Data representing the primitive formatted to STD430 OpenGL SSBO standard layout.
-
-        Returns:
-            NDarray[self._dtype]: Formatted array
-
-        """
-        return self._ogl_ssbo_data
-
-    @property
     def material(self) -> int:
-        """Index to the material list to use to render the sphere.
+        """
+        Index to the material list to use to render the sphere.
 
         Returns:
             int: Material index
@@ -67,8 +56,4 @@ class Primitive(ABC):
 
     @abstractmethod
     def _calculate_aabb(self) -> None:
-        pass
-
-    @abstractmethod
-    def _calculate_ogl_ssbo_array(self) -> None:
         pass

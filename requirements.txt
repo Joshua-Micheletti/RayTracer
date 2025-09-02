@@ -1,0 +1,6 @@
+glfw==2.9.0
+multipledispatch==1.0.0
+numpy==2.3.2
+PyOpenGL==3.1.10
+pyrr==0.10.3
+trimesh==4.8.0

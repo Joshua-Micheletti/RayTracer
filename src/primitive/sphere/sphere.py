@@ -3,7 +3,7 @@
 import numpy as np
 from numpy.typing import NDArray
 
-from aabb.AABB import AABB
+from aabb import AABB
 from primitive.primitive import Primitive
 from utils.typecheck import is_3d_array, is_float
 from utils.utils import format_xyz
@@ -18,24 +18,36 @@ class Sphere(Primitive):
 
     # ------------------------------ Dunder methods ------------------------------ #
     def __init__(
-        self, center: list[float] | NDArray[np.float32], radius: float | int, material: int = 0
+        self,
+        center: list[float] | NDArray[np.float32] = None,
+        radius: float | int = 1.0,
+        material: int = 0,
     ) -> None:
-        """Initialization method.
+        """
+        Initialization method.
 
         Args:
-            center (list[float] | NDArray[np.float32]): Center coordinates of the sphere
-            radius (float | int): Radius of the sphere
+            center (list[float] | NDArray[np.float32]): Center coordinates of the sphere. Defaults to [0.0, 0.0, 0.0]
+            radius (float | int): Radius of the sphere. Defaults to 1.0
             material (int, optional): Material index. Defaults to 0.
 
-        """
+        """  # noqa: E501
+        if center is None:
+            center = [0.0, 0.0, 0.0]
+
         self._dtype = np.dtype(
-            [
-                ("center", np.float32, 3),  # 3 floats (vec3)
-                ("radius", np.float32),
-                ("material", np.int32),
-                ("_pad", np.float32, 3),  # padding float to make vec3 align as vec4
-            ],
-            align=True,
+            {
+                "names": ["center", "radius", "radius2", "material", "_pad"],
+                "formats": [
+                    (np.dtype("<f4"), (3,)),
+                    np.dtype("<f4"),
+                    np.dtype("<f4"),
+                    np.dtype("<u4"),
+                    (np.dtype("<f4"), (2,)),
+                ],
+                "offsets": [0, 12, 16, 20, 24],
+                "itemsize": 32,
+            }
         )
 
         # create the private fields
@@ -43,11 +55,13 @@ class Sphere(Primitive):
         self._radius = None
 
         super().__init__(material=material)
+
         self.center = center
         self.radius = radius
 
     def __str__(self) -> str:
-        """Dunder method for converting the object into a printable string.
+        """
+        Dunder method for converting the object into a printable string.
 
         Returns:
             str: Formatted string representing the object
@@ -62,7 +76,8 @@ class Sphere(Primitive):
         return output
 
     def __repr__(self) -> str:
-        """Dunder method for converting the object into a printable string.
+        """
+        Dunder method for converting the object into a printable string.
 
         Returns:
             str: Formatted string representing the object
@@ -79,7 +94,8 @@ class Sphere(Primitive):
     # ---------------------------- Setters and Getters --------------------------- #
     @property
     def center(self) -> NDArray[np.float32]:
-        """Center coordinates of the sphere.
+        """
+        Center coordinates of the sphere.
 
         Returns:
             NDArray[np.float32]: Array containing the X, Y, Z coordinates of the sphere
@@ -96,7 +112,8 @@ class Sphere(Primitive):
 
     @property
     def radius(self) -> float:
-        """Radius of the sphere.
+        """
+        Radius of the sphere.
 
         Returns:
             float: The radius of the sphere
@@ -122,7 +139,7 @@ class Sphere(Primitive):
         min_coords: NDArray[np.float32] = self._center - self._radius
         max_coords: NDArray[np.float32] = self._center + self._radius
         # store the extrenes in the AABB
-        self._aabb = AABB(min=min_coords, max=max_coords)
+        self._aabb = AABB(min_coords=min_coords, max_coords=max_coords)
 
     def _calculate_ogl_ssbo_array(self) -> None:
         """Private method for calculating the data array for OpenGL SSBO."""
@@ -136,5 +153,6 @@ class Sphere(Primitive):
         # add the values to the array with the specified structure
         self._ogl_ssbo_data[0]["center"] = [self._center[0], self._center[1], self._center[2]]
         self._ogl_ssbo_data[0]["radius"] = self._radius
+        self._ogl_ssbo_data[0]["radius2"] = self._radius * self._radius
         self._ogl_ssbo_data[0]["material"] = self._material
-        self._ogl_ssbo_data[0]["_pad"] = [0.0, 0.0, 0.0]  # padding float
+        self._ogl_ssbo_data[0]["_pad"] = [0.0, 0.0]  # padding float

@@ -10,11 +10,12 @@ from typing import TYPE_CHECKING, Any, cast
 
 from OpenGL import GL
 
-from camera.Camera import Camera
-from Shader import Shader
+from camera import Camera
+from shader import Shader
+from utils.opengl_utils import create_screen_quad_vao
+from utils.typecheck import is_positive_int
 
 if TYPE_CHECKING:
-
     from numpy.typing import NDArray
 
 
@@ -60,14 +61,6 @@ class Renderer:
     # static reference
     __instance: Renderer | None = None
 
-    @staticmethod
-    def get_instance() -> Renderer:
-        """Function for implementing the Singleton behavior."""
-        if Renderer.__instance is None:
-            Renderer()
-
-        return cast(Renderer, Renderer.__instance)
-
     def __init__(self) -> None:
         """Init function, it sets up all the requried components for the renderer."""
         # Handle the class as a Singleton
@@ -79,64 +72,64 @@ class Renderer:
         Renderer.__instance = self
 
         # setup the dimensions of the renderer
-        self.width = 640
-        self.height = 480
+        self._width = 1280
+        self._height = 720
+
+        self._scaling_factor = 1.0
+
+        self._frames = 0
+
+        self.scene_min_coords = []
 
         # set the clear color for clearing the buffer
-        GL.glClearColor(0.1, 0.1, 0.1, 1.0)
+        GL.glClearColor(1.0, 1.0, 1.0, 1.0)
         # enable alpha blending
         GL.glEnable(GL.GL_BLEND)
         # define the blending functions
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
         # setup the vertices, VBO and VAO for the screen quad for rendering
-        self._setup_screen_quad()
+        self._vao = create_screen_quad_vao()
 
         # setup the screen textures
-        self.texture = self._setup_screen_texture(GL.GL_TEXTURE0)
-        self.last_frame = self._setup_screen_texture(GL.GL_TEXTURE1)
+        self._texture = self._setup_screen_texture(GL.GL_TEXTURE0)
+        self._last_frame = self._setup_screen_texture(GL.GL_TEXTURE1)
 
         # create all the buffers to store all the data to send the shader
-        self.vertices = GL.glGenBuffers(1)
-        self.model_mats = GL.glGenBuffers(1)
-        self.indices = GL.glGenBuffers(1)
-        self.normals = GL.glGenBuffers(1)
         self.spheres = GL.glGenBuffers(1)
         self.planes = GL.glGenBuffers(1)
         self.boxes = GL.glGenBuffers(1)
-        self.bounding_boxes = GL.glGenBuffers(1)
         self.materials = GL.glGenBuffers(1)
-        self.mesh_material_indices = GL.glGenBuffers(1)
         self.bvh = GL.glGenBuffers(1)
         self.triangles = GL.glGenBuffers(1)
 
         # setup the camera
-        self.camera = Camera.getInstance()
+        self._camera = Camera.get_instance()
 
         # prepare the render parameters
-        self.render_time = 0
+        self._render_time = 0
         self.rendered_frames = 0
-        self.bounces = 3
-        self.denoise = 0
-        self.far_plane = 1.0
+        self._bounces = 10
+        self._denoise = 0
+        self._far_plane = 1.0
 
         # create the compute shader and program
-        self.compute_shader: int = GL.glCreateShader(GL.GL_COMPUTE_SHADER)
-        self.program_id: int = GL.glCreateProgram()
+        self._compute_shader: int = GL.glCreateShader(GL.GL_COMPUTE_SHADER)
+        self._program_id: int = GL.glCreateProgram()
 
         # read the source of the compute shader
         compute_shader_source: str = ""
-        with Path("../shaders/compute.glsl").open("+r") as text:
+        with Path("./shaders/compute.glsl").open("+r") as text:
             compute_shader_source = text.read()
 
         # compile the shader
-        GL.glShaderSource(self.compute_shader, compute_shader_source)
-        GL.glCompileShader(self.compute_shader)
+        GL.glShaderSource(self._compute_shader, compute_shader_source)
+        GL.glCompileShader(self._compute_shader)
 
         # get the information from compiling the shader
         status = None
-        GL.glGetShaderiv(self.compute_shader, GL.GL_COMPILE_STATUS, status)
-        str_info_log: bytes | str = GL.glGetShaderInfoLog(self.compute_shader)
+        GL.glGetShaderiv(self._compute_shader, GL.GL_COMPILE_STATUS, status)
+        str_info_log: bytes | str = GL.glGetShaderInfoLog(self._compute_shader)
         str_shader_type: str = "compute"
         decoded_info_log: str = (
             str_info_log.decode() if isinstance(str_info_log, bytes) else str_info_log
@@ -144,103 +137,177 @@ class Renderer:
         print("Compilation result for " + str_shader_type + " shader:\n" + decoded_info_log)
 
         # link the compute shader with the program
-        GL.glAttachShader(self.program_id, self.compute_shader)
-        GL.glLinkProgram(self.program_id)
-        print("link result", GL.glGetProgramInfoLog(self.program_id))
+        GL.glAttachShader(self._program_id, self._compute_shader)
+        GL.glLinkProgram(self._program_id)
+        print("link result", GL.glGetProgramInfoLog(self._program_id))
 
-        self.screen_shader = Shader(
-            "../shaders/screen_vertex.glsl", "../shaders/screen_fragment.glsl"
+        self._screen_shader = Shader(
+            "./shaders/screen_vertex.glsl", "./shaders/screen_fragment.glsl"
         )
+
+        self._upscale_shader = Shader(
+            "./shaders/upscale_vertex.glsl", "./shaders/upscale_fragment.glsl"
+        )
+
+        # Create a color texture
+        self._color_tex = self._setup_screen_texture(GL.GL_TEXTURE0)
+        self._fbo = self._setup_framebuffer(self._color_tex)
+
+    @staticmethod
+    def get_instance() -> Renderer:
+        """Function for implementing the Singleton behavior."""
+        if Renderer.__instance is None:
+            Renderer()
+
+        return cast("Renderer", Renderer.__instance)
 
     def render(self) -> None:
         """Rendering method."""
         # take the starting time before the execution of the rendering function
         start: float = time.time()
 
-        # if the camera changed, update the flag and reset the accumulation
-        if self.camera.changed:
-            self.camera.changed = False
-            self.reset_accumulation()
+        for _i in range(1):
+            # if the camera changed, update the flag and reset the accumulation
+            if self._camera.changed:
+                self._camera.changed = False
+                self.reset_accumulation()
 
-        # set the active texture for writing the result of the compute shader to
-        GL.glActiveTexture(GL.GL_TEXTURE0)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.texture)
-        GL.glBindImageTexture(0, self.texture, 0, GL.GL_FALSE, 0, GL.GL_READ_WRITE, GL.GL_RGBA32F)
+            # set the active texture for writing the result of the compute shader to
+            GL.glActiveTexture(GL.GL_TEXTURE0)
+            GL.glBindTexture(GL.GL_TEXTURE_2D, self._texture)
+            GL.glBindImageTexture(
+                0, self._texture, 0, GL.GL_FALSE, 0, GL.GL_READ_WRITE, GL.GL_RGBA32F
+            )
 
-        # use the raytracer shader program to create the frame
-        GL.glUseProgram(self.program_id)
+            # use the raytracer shader program to create the frame
+            GL.glUseProgram(self._program_id)
 
-        # bind the uniforms required for the rendering of the scene
-        GL.glUniformMatrix4fv(
-            GL.glGetUniformLocation(self.program_id, "inverse_view_projection"),
-            1,
-            GL.GL_FALSE,
-            self.camera.get_inv_view_proj_matrix(),
-        )
+            # bind the uniforms required for the rendering of the scene
+            GL.glUniformMatrix4fv(
+                GL.glGetUniformLocation(self._program_id, "inverse_view_projection"),
+                1,
+                GL.GL_FALSE,
+                self._camera.get_inv_view_proj_matrix(),
+            )
 
-        GL.glUniform3f(
-            GL.glGetUniformLocation(self.program_id, "eye"),
-            self.camera.position[0],
-            self.camera.position[1],
-            self.camera.position[2],
-        )
-        GL.glUniform1f(GL.glGetUniformLocation(self.program_id, "time"), float(time.time() % 1))
-        GL.glUniform1f(GL.glGetUniformLocation(self.program_id, "bounces"), float(self.bounces))
-        GL.glUniform3f(
-            GL.glGetUniformLocation(self.program_id, "camera_up"),
-            self.camera.up[0],
-            self.camera.up[1],
-            self.camera.up[2],
-        )
-        GL.glUniform3f(
-            GL.glGetUniformLocation(self.program_id, "camera_right"),
-            self.camera.right[0],
-            self.camera.right[1],
-            self.camera.right[2],
-        )
-        GL.glUniform3f(
-            GL.glGetUniformLocation(self.program_id, "camera_front"),
-            self.camera.front[0],
-            self.camera.front[1],
-            self.camera.front[2],
-        )
+            GL.glUniform3f(
+                GL.glGetUniformLocation(self._program_id, "eye"),
+                self._camera.position[0],
+                self._camera.position[1],
+                self._camera.position[2],
+            )
+            GL.glUniform3f(
+                GL.glGetUniformLocation(self._program_id, "scene_min"),
+                self.scene_min_coords[0],
+                self.scene_min_coords[1],
+                self.scene_min_coords[2],
+            )
+            GL.glUniform3f(
+                GL.glGetUniformLocation(self._program_id, "scene_extent"),
+                self.scene_extent[0],
+                self.scene_extent[1],
+                self.scene_extent[2],
+            )
+            GL.glUniform1f(GL.glGetUniformLocation(self._program_id, "time"), float(self._frames))
+            GL.glUniform1f(
+                GL.glGetUniformLocation(self._program_id, "bounces"), float(self._bounces)
+            )
+            GL.glUniform3f(
+                GL.glGetUniformLocation(self._program_id, "camera_up"),
+                self._camera.up[0],
+                self._camera.up[1],
+                self._camera.up[2],
+            )
+            GL.glUniform3f(
+                GL.glGetUniformLocation(self._program_id, "camera_right"),
+                self._camera.right[0],
+                self._camera.right[1],
+                self._camera.right[2],
+            )
+            GL.glUniform3f(
+                GL.glGetUniformLocation(self._program_id, "camera_front"),
+                self._camera.front[0],
+                self._camera.front[1],
+                self._camera.front[2],
+            )
 
-        # dispatch the compute shader jobs
-        GL.glDispatchCompute(int(self.width / 8), int(self.height / 4), 1)
-        GL.glMemoryBarrier(GL.GL_ALL_BARRIER_BITS)
+            GL.glViewport(
+                0,
+                0,
+                int(self._width * self._scaling_factor),
+                int(self._height * self._scaling_factor),
+            )
+            # dispatch the compute shader jobs
+            GL.glDispatchCompute(
+                int((self._width / 8) * self._scaling_factor),
+                int((self._height / 4) * self._scaling_factor),
+                1,
+            )
+            GL.glMemoryBarrier(GL.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT)
 
-        # clear the buffer
-        GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+            # clear the buffer
+            GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+            # use the screen shader program
+            GL.glUseProgram(self._screen_shader.program)
+            # bind the required uniforms
+            GL.glUniform1i(GL.glGetUniformLocation(self._screen_shader.program, "tex"), 0)
+            GL.glUniform1i(GL.glGetUniformLocation(self._screen_shader.program, "old_tex"), 1)
+            GL.glUniform1f(
+                GL.glGetUniformLocation(self._screen_shader.program, "frames"), self.rendered_frames
+            )
+            GL.glUniform1f(
+                GL.glGetUniformLocation(self._screen_shader.program, "denoise"), self._denoise
+            )
 
-        # use the screen shader program
-        GL.glUseProgram(self.screen_shader.program)
-        # bind the required uniforms
-        GL.glUniform1i(GL.glGetUniformLocation(self.screen_shader.program, "tex"), 0)
-        GL.glUniform1i(GL.glGetUniformLocation(self.screen_shader.program, "old_tex"), 1)
-        GL.glUniform1f(
-            GL.glGetUniformLocation(self.screen_shader.program, "frames"), self.rendered_frames
-        )
-        GL.glUniform1f(GL.glGetUniformLocation(self.screen_shader.program, "denoise"), self.denoise)
+            GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, self._fbo)
 
-        # bind the screen quad
-        GL.glBindVertexArray(self.vao)
-        # render to the screen quad
+            # bind the screen quad
+            GL.glBindVertexArray(self._vao)
+            # render to the screen quad
+            GL.glDrawArrays(GL.GL_TRIANGLE_STRIP, 0, 4)
+
+            # GL.glUseProgram(self._upscale_shader.program)
+
+            # GL.glDrawArrays(GL.GL_TRIANGLE_STRIP, 0, 4)
+
+            # if the renderer is not set to denoise, accumulate the frames
+            if self._denoise == 0:
+                self.rendered_frames += 1
+                GL.glBindTexture(GL.GL_TEXTURE_2D, self._last_frame)
+                GL.glCopyTexSubImage2D(
+                    GL.GL_TEXTURE_2D,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    int(self._width * self._scaling_factor),
+                    int(self._height * self._scaling_factor),
+                )
+
+            self._frames += 1
+
+            # print()
+            # print_progress_bar(i, 199)
+            # print(i)
+
+        GL.glUseProgram(self._upscale_shader.program)
+
+        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0)
+
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self._color_tex)
+        GL.glViewport(0, 0, self._width, self._height)
         GL.glDrawArrays(GL.GL_TRIANGLE_STRIP, 0, 4)
 
         # reset to the default VAO
         GL.glBindVertexArray(0)
 
-        # if the renderer is not set to denoise, accumulate the frames
-        if self.denoise == 0:
-            self.rendered_frames += 1
-            GL.glBindTexture(GL.GL_TEXTURE_2D, self.last_frame)
-            GL.glCopyTexSubImage2D(GL.GL_TEXTURE_2D, 0, 0, 0, 0, 0, self.width, self.height)
-
         end = time.time()
         self.render_time = end - start
 
     def update_ssbo(self, ssbo: int, elements: NDArray, index: int, unbind: bool = True) -> None:
-        """Method for updating the content of an SSBO.
+        """
+        Method for updating the content of an SSBO.
 
         Args:
             ssbo (int): Index of the SSBO object to bind
@@ -259,26 +326,27 @@ class Renderer:
     def reset_accumulation(self) -> None:
         """Reset the accumulation of the frames."""
         GL.glCopyImageSubData(
-            self.texture,
+            self._texture,
             GL.GL_TEXTURE_2D,
             0,
             0,
             0,
             0,
-            self.last_frame,
+            self._last_frame,
             GL.GL_TEXTURE_2D,
             0,
             0,
             0,
             0,
-            self.width,
-            self.height,
+            int(self._width * self._scaling_factor),
+            int(self._height * self._scaling_factor),
             1,
         )
         self.rendered_frames = 0
 
     def update_size(self, width: int, height: int) -> None:
-        """Method for updating the size of the renderer.
+        """
+        Method for updating the size of the renderer.
 
         Args:
             width (int): New width
@@ -286,69 +354,55 @@ class Renderer:
 
         """
         # set the new dimensions
-        self.width = width
-        self.height = height
+        self._width = is_positive_int(width)
+        self._height = is_positive_int(height)
+
+        # update the OpenGL viewport with the new dimensions
+        GL.glViewport(0, 0, self._width, self._height)
+
+        # delete the internal textures
+        GL.glDeleteTextures(3, [self._texture, self._last_frame, self._color_tex])
 
         # update the textures with the new dimensions
-        self.texture = self._setup_screen_texture(GL.GL_TEXTURE0)
-        self.last_frame = self._setup_screen_texture(GL.GL_TEXTURE1)
+        self._texture = self._setup_screen_texture(GL.GL_TEXTURE0)
+        self._last_frame = self._setup_screen_texture(GL.GL_TEXTURE1)
+        self._color_tex = self._setup_screen_texture(GL.GL_TEXTURE0)
 
-    def _setup_screen_quad(self) -> None:
-        """Private method for setting up the screeb quad for rendering."""
-        # setup the vertices and UVs for the screen quad
-        vertices: list[float] = [
-            -1.0,
-            1.0,
-            0.0,
-            0.0,
-            1.0,
-            -1.0,
-            -1.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            1.0,
-            0.0,
-            1.0,
-            1.0,
-            1.0,
-            -1.0,
-            0.0,
-            1.0,
-            0.0,
-        ]
-
-        # convert the vertices into a format for OpenGL
-        vertices = (GL.GLfloat * len(vertices))(*vertices)
-
-        # create the VAO and VBO for storing and binding the verrtices of the screen quad
-        self.vao: int = 0
-        self.vbo: int = 0
-
-        self.vao = GL.glGenVertexArrays(2, self.vao)
-        self.vbo = GL.glGenBuffers(1, self.vbo)
-
-        # bind the buffer and store the vertex data
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vbo)
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL.GL_STATIC_DRAW)
-
-        # bind the array and set the 2 entry points for the vertices and the UVs
-        GL.glBindVertexArray(self.vao)
-        GL.glEnableVertexAttribArray(0)
-        GL.glVertexAttribPointer(
-            0, 3, GL.GL_FLOAT, GL.GL_FALSE, 5 * sizeof(GL.GLfloat), c_void_p(0)
-        )
-        GL.glEnableVertexAttribArray(1)
-        GL.glVertexAttribPointer(
-            1, 2, GL.GL_FLOAT, GL.GL_FALSE, 5 * sizeof(GL.GLfloat), c_void_p(3 * sizeof(GL.GLfloat))
+        # bind the framebuffer
+        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, self._fbo)
+        # update the color attachment
+        GL.glFramebufferTexture2D(
+            GL.GL_FRAMEBUFFER, GL.GL_COLOR_ATTACHMENT0, GL.GL_TEXTURE_2D, self._color_tex, 0
         )
 
-    def _setup_screen_texture(self, texture_slot: Any) -> int:  # noqa: ANN401
-        """Private method for setting up a screen texture.
+        # Check framebuffer completeness
+        if GL.glCheckFramebufferStatus(GL.GL_FRAMEBUFFER) != GL.GL_FRAMEBUFFER_COMPLETE:
+            print("Framebuffer is not complete!")
+
+        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0)
+
+    @property
+    def bounces(self) -> int:
+        """
+        Number of bounces each ray takes before getting the result.
+
+        Returns:
+            int: Number of bounces
+
+        """
+        return self._bounces
+
+    @bounces.setter
+    def bounces(self, value: int) -> None:
+        self._bounces = is_positive_int(value)
+
+    def _setup_screen_texture(self, texture_slot: Any, scale_filter: Any = GL.GL_NEAREST) -> int:  # noqa: ANN401
+        """
+        Private method for setting up a screen texture.
 
         Args:
             texture_slot (Any): GL_TEXTURE<N> to decide the texture slot
+            scale_filter (Any): GL_NEAREST / GL_LINEAR
 
         Returns:
             int: Pointer to the newly created texture
@@ -356,41 +410,80 @@ class Renderer:
         """
         # create the texture
         texture: int = 0
-        texture = GL.glGenTextures(1, texture)
+        texture = GL.glGenTextures(1)
         # set the active texture slot and bind the new texture to it
         GL.glActiveTexture(texture_slot)
         GL.glBindTexture(GL.GL_TEXTURE_2D, texture)
         # define the texture parameters
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, scale_filter)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, scale_filter)
         # setup the texture storage size and format
-        GL.glTexStorage2D(GL.GL_TEXTURE_2D, 1, GL.GL_RGBA32F, self.width, self.height)
+        GL.glTexStorage2D(
+            GL.GL_TEXTURE_2D,
+            1,
+            GL.GL_RGBA32F,
+            int(self._width * self._scaling_factor),
+            int(self._height * self._scaling_factor),
+        )
         GL.glBindImageTexture(0, texture, 1, GL.GL_TRUE, 0, GL.GL_READ_WRITE, GL.GL_RGBA32F)
 
         # retun the texture
         return texture
+
+    def _setup_framebuffer(self, color_texture: int) -> int:
+        """
+        Private method for setting up a framebuffer.
+
+        Args:
+            color_texture (int): Index to a valid OpenGL texture
+
+        Returns:
+            int: OpenGL index of the framebuffer
+
+        """
+        # create the framebuffer
+        fbo: int = GL.glGenFramebuffers(1)
+        # bind it as the current framebuffer
+        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, fbo)
+
+        # attach the input texture to the framebuffer's color attachment
+        GL.glFramebufferTexture2D(
+            GL.GL_FRAMEBUFFER, GL.GL_COLOR_ATTACHMENT0, GL.GL_TEXTURE_2D, color_texture, 0
+        )
+
+        # Check framebuffer completeness
+        if GL.glCheckFramebufferStatus(GL.GL_FRAMEBUFFER) != GL.GL_FRAMEBUFFER_COMPLETE:
+            print("Framebuffer is not complete!")
+
+        # Unbind framebuffer
+        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0)
+
+        # return the newly created framebuffer
+        return fbo
 
 
 class RendererInitializedError(Exception):
     """Custom exception for when the Window is already initialized."""
 
     def __init__(self, message: str) -> None:
-        """Initialization method.
+        """
+        Initialization method.
 
         Args:
             message (str): Message to display in the error
 
         """
-        self.message: str = message
+        self._message: str = message
         super().__init__(message)
 
     def __str__(self) -> str:
-        """To string method.
+        """
+        To string method.
 
         Returns:
             str: String representation of the object
 
         """
-        return f"{self.message}"
+        return f"{self._message}"
